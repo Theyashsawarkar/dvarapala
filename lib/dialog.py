@@ -274,7 +274,7 @@ class ElevateWindow(Adw.ApplicationWindow):
             foot.append(h)
         # Answerable from the phone too, when ekatva runs (lib/remote.py).
         self.remote = remote.Remote.start(
-            {"id": req.id, "via": "dvarapala", "requester": req.requester, "reason": req.reason,
+            {"id": req.id, "via": "anumati", "requester": req.requester, "reason": req.reason,
              "commands": [{"cmd": c, "why": w, "as": who, **({"cwd": cwd} if who == "user" else {})}
                           for c, w, who, cwd in req.commands]},
             lambda answer: GLib.idle_add(self.remote_answer, answer), root=req.root)

@@ -83,7 +83,7 @@ class Bridge(unittest.TestCase):
 
         t = threading.Thread(target=ekatva, daemon=True)
         t.start()
-        r = remote.Remote.start({"id": "r", "via": "dvarapala", "requester": "claude", "reason": "x",
+        r = remote.Remote.start({"id": "r", "via": "anumati", "requester": "claude", "reason": "x",
                                  "commands": [{"cmd": "id", "why": "who"}]}, answers.append, path=path)
         self.assertTrue(r.connected)
         for _ in range(100):
