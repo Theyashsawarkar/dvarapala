@@ -1,4 +1,4 @@
-"""anumati's look: Vyom's visual language in the user's varna theme, but
+"""dvarapala's look: Vyom's visual language in the user's varna theme, but
 only while every text stays readable. Pure Python (no GTK), for the
 approval window (dialog.py), installed root-owned next to it and loaded by
 path, never from the user's home. pramana (the polkit password prompt)

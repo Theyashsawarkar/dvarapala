@@ -5,7 +5,7 @@
 
 ## Context
 
-Decisions about how anumati is built (its dependencies, its boundaries, the trade-offs it accepts) were made in conversations and commit messages, where nobody finds them later. A contributor asking "why does it do it this way?" deserves an answer that doesn't need the original author.
+Decisions about how dvarapala is built (its dependencies, its boundaries, the trade-offs it accepts) were made in conversations and commit messages, where nobody finds them later. A contributor asking "why does it do it this way?" deserves an answer that doesn't need the original author.
 
 ## Decision
 

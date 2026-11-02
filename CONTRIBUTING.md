@@ -1,4 +1,4 @@
-# Contributing to anumati
+# Contributing to dvarapala
 
 Thanks for helping. Bug reports, ideas and pull requests are welcome.
 Because this code decides what runs as root, changes are reviewed for
@@ -7,20 +7,20 @@ security first: keep them small and explain the reasoning.
 ## Development setup
 
 ```sh
-git clone https://github.com/Theyashsawarkar/anumati ~/code/anumati
-cd ~/code/anumati
-python -m py_compile bin/anumati lib/*.py
+git clone https://github.com/Theyashsawarkar/dvarapala ~/code/dvarapala
+cd ~/code/dvarapala
+python -m py_compile bin/dvarapala lib/*.py
 python -m unittest discover -s tests -v
 shellcheck install.sh
 ```
 
 The installed copy is root-owned in `/usr/local`; test a change by running
 `./install.sh` from your clone (it shows what it replaces), then a harmless
-request: `anumati --why "Test" --cmd "id"`.
+request: `dvarapala --why "Test" --cmd "id"`.
 
 ## How it fits together
 
-- `bin/anumati`: what agents call. Validates the request, starts the window
+- `bin/dvarapala`: what agents call. Validates the request, starts the window
   as a transient systemd user service, waits, prints the result. `--mcp`
   serves the same over MCP.
 - `lib/dialog.py`: the approval window (GTK 4 / libadwaita). Checks the
@@ -35,10 +35,10 @@ request: `anumati --why "Test" --cmd "id"`.
   display and execution; never add a way to run something that isn't shown.
 - **No new trust in the agent.** The agent's process must never see the
   password or be able to edit what the window or runner do.
-- **Keys are discoverable**: a `# keybind: Anumati/<scope> | <keys> | <Verb> <object>`
+- **Keys are discoverable**: a `# keybind: Dvarapala/<scope> | <keys> | <Verb> <object>`
   line in `lib/dialog.py`'s header and a row in the README (CI checks).
 - Every change gets a `CHANGELOG.md` entry; releases are tags `vX.Y.Z` with
-  `VERSION` in `bin/anumati` bumped.
+  `VERSION` in `bin/dvarapala` bumped.
 
 ## Pull requests
 

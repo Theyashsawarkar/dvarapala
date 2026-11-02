@@ -82,7 +82,7 @@ def run(cmd, cwd, env, timeout=TIMEOUT):
     t0 = time.monotonic()
     timed_out = False
     if not os.path.isdir(cwd):
-        code, out, err = 1, b"", f"anumati: no such directory: {cwd}".encode()
+        code, out, err = 1, b"", f"dvarapala: no such directory: {cwd}".encode()
     else:
         try:
             p = subprocess.run(["/usr/bin/bash", "-c", cmd], cwd=cwd, env=env,

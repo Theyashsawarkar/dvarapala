@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in anumati doesn't work as described
+description: Something in dvarapala doesn't work as described
 labels: [bug]
 body:
   - type: textarea
@@ -13,7 +13,7 @@ body:
     id: versions
     attributes:
       label: Versions
-      description: Output of `anumati --version`, your desktop (compositor) and distribution.
+      description: Output of `dvarapala --version`, your desktop (compositor) and distribution.
       render: text
     validations:
       required: true
@@ -21,5 +21,5 @@ body:
     id: log
     attributes:
       label: Request and log
-      description: The request (redact anything private) and `tail ~/.local/state/anumati/requests.jsonl`.
+      description: The request (redact anything private) and `tail ~/.local/state/dvarapala/requests.jsonl`.
       render: text

@@ -5,7 +5,7 @@
 
 ## Context
 
-Agents get stuck on more than root. A sandboxed agent can't reach the network or write outside its project; an agent the user set to "ask first" waits on commands it can't run alone. The fix was the same as for sudo before anumati: copy the command into a terminal, run it, paste the output back. Users asked for anumati to take these too, as long as root commands and the others can never be mistaken for each other.
+Agents get stuck on more than root. A sandboxed agent can't reach the network or write outside its project; an agent the user set to "ask first" waits on commands it can't run alone. The fix was the same as for sudo before dvarapala: copy the command into a terminal, run it, paste the output back. Users asked for dvarapala to take these too, as long as root commands and the others can never be mistaken for each other.
 
 ## Decision
 
@@ -20,6 +20,6 @@ Each command in a request says how it runs: `"as": "root"` (the default, so ever
 ## Consequences
 
 - YOU commands are approved with a click, not a password: the window, which the agent didn't start, is the gate. A program already running as you that is actively malicious could run things as you anyway, so this stays within [ADR 2](0002-consent-gate-not-sandbox.md).
-- YOU commands are logged in the user's `requests.jsonl` only; `/var/log/anumati.log` stays the record of what ran as root.
+- YOU commands are logged in the user's `requests.jsonl` only; `/var/log/dvarapala.log` stays the record of what ran as root.
 - A YOU command doesn't see the agent's environment (virtualenvs, tokens, exports): agents pass what they need on the command line.
 - ekatva's phone app gets each command's `as` and `cwd`; until it shows them and lets you approve without a password, approve YOU-only requests in the window.

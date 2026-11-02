@@ -1,5 +1,5 @@
 #!/usr/bin/python3 -I
-"""anumati (अनुमति, "permission"): run commands with the user's approval. For AI agents.
+"""dvarapala (द्वारपाल, "permission"): run commands with the user's approval. For AI agents.
 
 Instead of asking the user to copy sudo commands into a terminal, an agent
 sends the commands and the reason for each. An approval window shows them on
@@ -15,7 +15,7 @@ Each command says how it runs, and the window marks the two apart:
 
 Usage (any agent that can run a shell command):
 
-    anumati <<'EOF'
+    dvarapala <<'EOF'
     {"requester": "Claude Code",
      "reason": "Install and start the Docker daemon you asked for.",
      "commands": [
@@ -26,10 +26,10 @@ Usage (any agent that can run a shell command):
      ]}
     EOF
 
-    anumati --why "Reload udev rules" --cmd "udevadm control --reload"   # one-off form
-    anumati --as user --cwd ~/project --why "Push the branch" --cmd "git push"
-    anumati --schema     # request/result format (JSON Schema)
-    anumati --mcp        # MCP server on stdio (tool: request_root_commands)
+    dvarapala --why "Reload udev rules" --cmd "udevadm control --reload"   # one-off form
+    dvarapala --as user --cwd ~/project --why "Push the branch" --cmd "git push"
+    dvarapala --schema     # request/result format (JSON Schema)
+    dvarapala --mcp        # MCP server on stdio (tool: request_root_commands)
 
 Exit codes: 0 every command approved and succeeded; 1 an approved command
 failed; 3 nothing ran (denied, timed out, wrong password); 4 some commands
@@ -39,7 +39,7 @@ Commands run with `bash -c`, with no stdin and no tty, in request order,
 stopping at the first failure: use non-interactive flags (pacman
 --noconfirm, apt -y). The user can decline any
 of them, so check "results" for each command's "state". Docs:
-https://github.com/Theyashsawarkar/anumati
+https://github.com/Theyashsawarkar/dvarapala
 """
 import argparse
 import json
@@ -52,9 +52,9 @@ import threading
 import time
 import uuid
 
-DIALOG = "/usr/local/lib/anumati/dialog.py"
-LIB = "/usr/local/lib/anumati"
-VERSION = "1.5.0"
+DIALOG = "/usr/local/lib/dvarapala/dialog.py"
+LIB = "/usr/local/lib/dvarapala"
+VERSION = "1.6.0"
 
 MAX_COMMANDS, MAX_CMD, MAX_WHY, MAX_REASON, MAX_REQUESTER, MAX_CWD = 50, 8000, 500, 2000, 80, 1024
 AS = ("root", "user")
@@ -168,7 +168,7 @@ def session_env():
            # Root-owned, so user GTK CSS/settings can't restyle (or hide) the dialog.
            "XDG_CONFIG_HOME": f"{LIB}/config", "XDG_DATA_HOME": f"{LIB}/data",
            "XDG_DATA_DIRS": "/usr/local/share:/usr/share",
-           "XDG_CACHE_HOME": os.path.join(runtime, "anumati", "cache"),
+           "XDG_CACHE_HOME": os.path.join(runtime, "dvarapala", "cache"),
            "PATH": "/usr/local/bin:/usr/bin"}
     bus = os.environ.get("DBUS_SESSION_BUS_ADDRESS") or f"unix:path={runtime}/bus"
     env["DBUS_SESSION_BUS_ADDRESS"] = bus
@@ -181,14 +181,14 @@ def request(req):
         raise BadRequest(f"{DIALOG} is missing: run ~/dotfiles/ai/apply.sh")
     env = session_env()
     rid = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:8]
-    base = os.path.join(env["XDG_RUNTIME_DIR"], "anumati")
+    base = os.path.join(env["XDG_RUNTIME_DIR"], "dvarapala")
     os.makedirs(base, mode=0o700, exist_ok=True)
     os.makedirs(env["XDG_CACHE_HOME"], mode=0o700, exist_ok=True)
     rdir = os.path.join(base, rid)
     os.mkdir(rdir, 0o700)
     with open(os.path.join(rdir, "request.json"), "w") as f:
         json.dump({"id": rid, **req}, f)
-    unit = f"anumati-{rid}"
+    unit = f"dvarapala-{rid}"
     # A transient user service: the dialog isn't a child of this process
     # (or of the agent), and env -i drops anything the caller set.
     cmd = ["systemd-run", "--user", "--quiet", "--collect", f"--unit={unit}",
@@ -198,7 +198,7 @@ def request(req):
     if p.returncode != 0:
         raise BadRequest(f"couldn't start the approval window: {p.stderr.strip()}")
     if shutil.which("notify-send"):
-        subprocess.run(["notify-send", "-a", "anumati", "-u", "critical", "-i", "security-high",
+        subprocess.run(["notify-send", "-a", "dvarapala", "-u", "critical", "-i", "security-high",
                         "Root access requested" if any(c["as"] == "root" for c in req["commands"])
                         else "Approval requested",
                         f"{req.get('requester') or 'An AI agent'} wants to run {summary(req['commands'])}."],
@@ -300,7 +300,7 @@ def mcp_serve():
             send({"jsonrpc": "2.0", "id": msg_id, "result": {
                 "protocolVersion": client,
                 "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {"name": "anumati", "version": VERSION},
+                "serverInfo": {"name": "dvarapala", "version": VERSION},
                 "instructions": "Use request_commands for anything that needs root on this machine "
                                 "(as 'root'), or that you can't run yourself (as 'user'), instead of "
                                 "asking the user to paste commands into a terminal."}})
@@ -321,7 +321,7 @@ def mcp_serve():
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="anumati", description=__doc__,
+    ap = argparse.ArgumentParser(prog="dvarapala", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--file", help="read the JSON request from this file (default: stdin)")
     ap.add_argument("--cmd", action="append", default=[], help="a command (pair each with --why)")

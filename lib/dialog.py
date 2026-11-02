@@ -1,13 +1,13 @@
 #!/usr/bin/python3 -I
-"""The anumati approval window: shows what an AI agent wants to run (as
+"""The dvarapala approval window: shows what an AI agent wants to run (as
 root, or as you: each command is marked) and why, lets the user pick which
 commands to allow, takes the sudo password once if any root command is
 picked, and goes away the moment the user has answered. This process then
 runs the picked ones in order, with no window, and writes the result for the
 agent, which is the one that waits.
 
-Installed root-owned as /usr/local/lib/anumati/dialog.py by
-anumati's install.sh, and started only by anumati, as a transient user service
+Installed root-owned as /usr/local/lib/dvarapala/dialog.py by
+dvarapala's install.sh, and started only by dvarapala, as a transient user service
 (not a child of the agent, so the agent can't ptrace it) with a cleared
 environment and XDG dirs pointing at root-owned directories (so no user
 GTK CSS can hide a row). See ai/README.md for the threat model.
@@ -15,10 +15,10 @@ GTK CSS can hide a row). See ai/README.md for the threat model.
     dialog.py <request-dir>     reads request.json, writes result.json
 
 Keys:
-# keybind: Anumati/root approval | Esc | Cancel the root request (deny everything)
-# keybind: Anumati/root approval | Enter (password field or Run) | Run the selected commands (as root and as you)
-# keybind: Anumati/root approval | Space | Toggle the focused command
-# keybind: Anumati/root approval | Ctrl+H | Hide the approval window (unanswered, the request stays open on the phone until it expires)
+# keybind: Dvarapala/root approval | Esc | Cancel the root request (deny everything)
+# keybind: Dvarapala/root approval | Enter (password field or Run) | Run the selected commands (as root and as you)
+# keybind: Dvarapala/root approval | Space | Toggle the focused command
+# keybind: Dvarapala/root approval | Ctrl+H | Hide the approval window (unanswered, the request stays open on the phone until it expires)
 """
 import ctypes
 import json
@@ -35,18 +35,18 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk, Pango  # noqa: E402
 
-APP_ID = "io.github.theyashsawarkar.Anumati"
-RUNNER = "/usr/local/lib/anumati/runner.py"
+APP_ID = "io.github.theyashsawarkar.Dvarapala"
+RUNNER = "/usr/local/lib/dvarapala/runner.py"
 SUDO = "/usr/bin/sudo"
 EXPIRES_AFTER = 600          # seconds the request stays open (then: denied)
 MAX_ATTEMPTS = 3             # wrong passwords before the request fails
-STATE_LOG = os.path.join(pwd.getpwuid(os.getuid()).pw_dir, ".local/state/anumati/requests.jsonl")
+STATE_LOG = os.path.join(pwd.getpwuid(os.getuid()).pw_dir, ".local/state/dvarapala/requests.jsonl")
 
 # The look and the theme check (lib/theme.py), loaded by path from this
 # root-owned directory: python -I puts no script directory on sys.path.
 def _load_theme_module():
     import importlib.util
-    spec = importlib.util.spec_from_file_location("anumati_theme", os.path.join(os.path.dirname(os.path.realpath(__file__)), "theme.py"))
+    spec = importlib.util.spec_from_file_location("dvarapala_theme", os.path.join(os.path.dirname(os.path.realpath(__file__)), "theme.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -57,7 +57,7 @@ _theme = _load_theme_module()
 
 def _load_remote_module():
     import importlib.util
-    spec = importlib.util.spec_from_file_location("anumati_remote", os.path.join(os.path.dirname(os.path.realpath(__file__)), "remote.py"))
+    spec = importlib.util.spec_from_file_location("dvarapala_remote", os.path.join(os.path.dirname(os.path.realpath(__file__)), "remote.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -68,7 +68,7 @@ remote = _load_remote_module()
 
 def _load_userrun_module():
     import importlib.util
-    spec = importlib.util.spec_from_file_location("anumati_userrun", os.path.join(os.path.dirname(os.path.realpath(__file__)), "userrun.py"))
+    spec = importlib.util.spec_from_file_location("dvarapala_userrun", os.path.join(os.path.dirname(os.path.realpath(__file__)), "userrun.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -111,7 +111,7 @@ class Request:
 
 
 def summary(commands):
-    """'2 commands as root and 1 as you' (anumati's notification says the same)."""
+    """'2 commands as root and 1 as you' (dvarapala's notification says the same)."""
     root = sum(c[2] == "root" for c in commands)
     user = len(commands) - root
     first = root or user
@@ -274,7 +274,7 @@ class ElevateWindow(Adw.ApplicationWindow):
             foot.append(h)
         # Answerable from the phone too, when ekatva runs (lib/remote.py).
         self.remote = remote.Remote.start(
-            {"id": req.id, "via": "anumati", "requester": req.requester, "reason": req.reason,
+            {"id": req.id, "via": "dvarapala", "requester": req.requester, "reason": req.reason,
              "commands": [{"cmd": c, "why": w, "as": who, **({"cwd": cwd} if who == "user" else {})}
                           for c, w, who, cwd in req.commands]},
             lambda answer: GLib.idle_add(self.remote_answer, answer), root=req.root)
@@ -534,7 +534,7 @@ class ElevateWindow(Adw.ApplicationWindow):
         try:
             write_json_atomic(os.path.join(self.outdir, "result.json"), result)
         except OSError as e:
-            print(f"anumati dialog: can't write the result: {e}", file=sys.stderr)
+            print(f"dvarapala dialog: can't write the result: {e}", file=sys.stderr)
         self.log(result)
         self.quit()
 

@@ -14,12 +14,12 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile
-        run: python -m py_compile bin/anumati lib/*.py
+        run: python -m py_compile bin/dvarapala lib/*.py
       - name: ShellCheck
         run: shellcheck -S warning install.sh
       - name: Version and changelog agree
         run: |
-          v=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' bin/anumati)
+          v=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' bin/dvarapala)
           grep -q "^## v$v " CHANGELOG.md || { echo "CHANGELOG.md has no entry for v$v"; exit 1; }
       - name: Every key is documented
         run: |
@@ -27,7 +27,7 @@ jobs:
           import pathlib, re
           readme = pathlib.Path("README.md").read_text()
           missing = [m.group(1) for line in pathlib.Path("lib/dialog.py").read_text().splitlines()
-                     if (m := re.match(r"#\s*keybind:\s*Anumati/[^|]+\|\s*([^|]+?)\s*\|", line))
+                     if (m := re.match(r"#\s*keybind:\s*Dvarapala/[^|]+\|\s*([^|]+?)\s*\|", line))
                      and f"`{m.group(1)}`" not in readme]
           assert not missing, f"keys missing from README.md: {missing}"
           PY

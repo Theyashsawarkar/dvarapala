@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
     <source media="(prefers-color-scheme: light)" srcset="assets/banner-light.svg">
-    <img alt="anumati" src="assets/banner-dark.svg" width="560">
+    <img alt="dvarapala" src="assets/banner-dark.svg" width="560">
   </picture>
 </p>
 
@@ -12,8 +12,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Theyashsawarkar/anumati/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Theyashsawarkar/anumati/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/Theyashsawarkar/anumati/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Theyashsawarkar/anumati?color=a6e3a1&label=release"></a>
+  <a href="https://github.com/Theyashsawarkar/dvarapala/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Theyashsawarkar/dvarapala/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Theyashsawarkar/dvarapala/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Theyashsawarkar/dvarapala?color=a6e3a1&label=release"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-f5e0dc"></a>
   <img alt="Linux" src="https://img.shields.io/badge/platform-linux-89b4fa">
   <img alt="MCP" src="https://img.shields.io/badge/MCP-request__commands-cba6f7">
@@ -23,14 +23,14 @@
   <img alt="The approval window: a Root access pill and Claude Code's request in the top bar, each command as a card with its reason and a checkbox, the password field with Deny and Run, and the keys in the footer" src="assets/screenshots/window.png" width="80%">
 </p>
 
-> *Anumati* (अनुमति) is Sanskrit for "permission, consent": nothing runs
+> *Dvarapala* (द्वारपाल) is Sanskrit for "permission, consent": nothing runs
 > as root without yours.
 
 An AI coding agent (Claude Code, Codex, Aider, Gemini CLI, anything that can
 run a shell command or speak MCP) regularly needs something done as root:
 install a package, enable a service, edit a file in `/etc`. The usual
 answer is to copy sudo commands between the agent and a terminal.
-anumati replaces that: the agent sends the commands, each with a reason; a
+dvarapala replaces that: the agent sends the commands, each with a reason; a
 window shows them on your desktop; you untick what you don't want, type
 your password once, and the ticked commands run. The agent gets every
 command's output and exit code back.
@@ -91,26 +91,26 @@ and systemd's user manager, `sudo`, Python 3.11+, PyGObject, GTK 4,
 libadwaita, and libnotify (`notify-send`).
 
 ```sh
-git clone https://github.com/Theyashsawarkar/anumati ~/.local/share/anumati
-~/.local/share/anumati/install.sh          # asks for sudo once
-anumati --why "Test" --cmd "id"            # the window opens; approve it
+git clone https://github.com/Theyashsawarkar/dvarapala ~/.local/share/dvarapala
+~/.local/share/dvarapala/install.sh          # asks for sudo once
+dvarapala --why "Test" --cmd "id"            # the window opens; approve it
 ```
 
-`install.sh` installs everything **root-owned** (`/usr/local/bin/anumati`,
-`/usr/local/lib/anumati/`), so an agent running as your user can't change
+`install.sh` installs everything **root-owned** (`/usr/local/bin/dvarapala`,
+`/usr/local/lib/dvarapala/`), so an agent running as your user can't change
 what the window shows or what it runs. On Arch it installs the dependencies
 too; elsewhere install them first (Debian/Ubuntu: `python3-gi gir1.2-gtk-4.0
 gir1.2-adw-1 libnotify-bin`; Fedora: `python3-gobject gtk4 libadwaita
 libnotify`).
 
 ```sh
-~/.local/share/anumati/install.sh --check       # what differs from this clone
-git -C ~/.local/share/anumati pull && ~/.local/share/anumati/install.sh   # update
-~/.local/share/anumati/install.sh --uninstall
+~/.local/share/dvarapala/install.sh --check       # what differs from this clone
+git -C ~/.local/share/dvarapala pull && ~/.local/share/dvarapala/install.sh   # update
+~/.local/share/dvarapala/install.sh --uninstall
 ```
 
 It used to be called `vayu-elevate`; the installer keeps that name as a
-link to `anumati`, so agents and notes that still use it keep working.
+link to `dvarapala`, so agents and notes that still use it keep working.
 
 ## What you see
 
@@ -146,7 +146,7 @@ Send a JSON request on stdin. It blocks until the user answers (up to 10
 minutes), then prints a JSON result.
 
 ```sh
-anumati <<'EOF'
+dvarapala <<'EOF'
 {
   "requester": "Claude Code",
   "reason": "Install Docker and start it on demand, as you asked.",
@@ -160,9 +160,9 @@ anumati <<'EOF'
 EOF
 ```
 
-One-off form: `anumati --requester "Claude Code" --why "Reload udev rules" --cmd "udevadm control --reload"`
+One-off form: `dvarapala --requester "Claude Code" --why "Reload udev rules" --cmd "udevadm control --reload"`
 (repeat `--why`/`--cmd` pairs for more; add `--as user` and `--cwd DIR` to
-run them all as you). `anumati --schema` prints the request and result JSON
+run them all as you). `dvarapala --schema` prints the request and result JSON
 Schema.
 
 Rules for the commands:
@@ -235,20 +235,20 @@ Output is capped at 512 KB per stream (`truncated: true` when cut).
 
 ## For agents: over MCP
 
-`anumati --mcp` is an MCP server (stdio) with one tool,
+`dvarapala --mcp` is an MCP server (stdio) with one tool,
 `request_commands`, taking the same request object and returning the
 result as text and `structuredContent`. It's also listed under its 1.x
 name, `request_root_commands` (the same tool: commands without `"as"` run
 as root), so existing setups keep working.
 
 ```sh
-claude mcp add --scope user anumati -- anumati --mcp      # Claude Code
+claude mcp add --scope user dvarapala -- dvarapala --mcp      # Claude Code
 ```
 
 ```json
 {
   "mcpServers": {
-    "anumati": {"command": "/usr/local/bin/anumati", "args": ["--mcp"]}
+    "dvarapala": {"command": "/usr/local/bin/dvarapala", "args": ["--mcp"]}
   }
 }
 ```
@@ -266,8 +266,8 @@ Add a few lines to the agent's global instructions (Claude Code:
 
 ```markdown
 - Commands you can't run yourself: don't ask me to paste them into a
-  terminal. Send them to `anumati` (JSON on stdin: requester, reason,
-  commands: [{cmd, why, as, cwd}]; see `anumati --help`): `"as": "root"`
+  terminal. Send them to `dvarapala` (JSON on stdin: requester, reason,
+  commands: [{cmd, why, as, cwd}]; see `dvarapala --help`): `"as": "root"`
   for anything that needs root, `"as": "user"` (with `cwd`) for the rest,
   like a command your sandbox blocks. I approve them in a window; you get
   the results. Respect declined commands; never retry a denied request
@@ -277,25 +277,25 @@ Add a few lines to the agent's global instructions (Claude Code:
 ## What's recorded
 
 Every command that ran as root, with its exit code, goes to
-`/var/log/anumati.log`: root-only, so the agent can't edit it. Every
+`/var/log/dvarapala.log`: root-only, so the agent can't edit it. Every
 request, denied ones included, goes to your own
-`~/.local/state/anumati/requests.jsonl`, with each command's `as` and
+`~/.local/state/dvarapala/requests.jsonl`, with each command's `as` and
 `cwd` (YOU commands are only in this one).
 
 ```sh
-sudo tail -n 20 /var/log/anumati.log | jq .
-tail -n 5 ~/.local/state/anumati/requests.jsonl | jq .
+sudo tail -n 20 /var/log/dvarapala.log | jq .
+tail -n 5 ~/.local/state/dvarapala/requests.jsonl | jq .
 ```
 
 ## Security
 
-anumati is a **consent gate**: nothing runs as root unless you see it and
+dvarapala is a **consent gate**: nothing runs as root unless you see it and
 type your password, and nothing runs as you unless you see it and press Run.
 
 | Guarantee | How |
 |---|---|
 | The agent never sees your password | It's typed into the approval window: a separate process the agent didn't start (a transient systemd user service, with a clean environment) and can't inspect (`PR_SET_DUMPABLE=0`). |
-| What runs is what you saw | The window and the root-side runner are root-owned files; the window holds the request in memory once shown; Python runs isolated (`-I`); your GTK styling can't hide part of it (the window uses root-owned XDG dirs); the theme's colours are read as plain `#rrggbb` only and used only while every text stays readable, else anumati's own ([ADR 6](docs/adr/0006-themed-but-never-hidden.md)); invisible or direction-changing characters are refused. |
+| What runs is what you saw | The window and the root-side runner are root-owned files; the window holds the request in memory once shown; Python runs isolated (`-I`); your GTK styling can't hide part of it (the window uses root-owned XDG dirs); the theme's colours are read as plain `#rrggbb` only and used only while every text stays readable, else dvarapala's own ([ADR 6](docs/adr/0006-themed-but-never-hidden.md)); invisible or direction-changing characters are refused. |
 | No leftover access | sudo runs with `-k` both times: no cached credentials for anything else. |
 | ROOT and YOU can't be confused | Each card says which, in its own colour, with its number in the run order; YOU cards show the user and folder. A command without `"as"` is ROOT, never the reverse; root commands always run from `/`. |
 | A YOU command runs only what you saw | It runs from the window, not the agent, with `bash -c` (no login shell, so no rc file), in an allowlisted environment taken from the session's systemd user manager, not the agent: no `BASH_ENV`, `LD_PRELOAD` or exported functions, and a `PATH` without relative or world-writable folders ([ADR 8](docs/adr/0008-commands-as-you.md)). |
@@ -305,14 +305,14 @@ What it **can't** do: protect you from a program that is actively malicious
 and already running as your user. Such a program could draw a lookalike
 window to collect your password, or tamper with the systemd user manager the
 window starts from; that's true of every password prompt on a Linux desktop,
-polkit's included. Use anumati with agents you trust to ask honestly, and
+polkit's included. Use dvarapala with agents you trust to ask honestly, and
 read each command before you approve it. Report security problems privately:
 [SECURITY.md](SECURITY.md).
 
 ## How it works
 
-1. `anumati` rejects bad requests (no `why`, more than 50 commands, hidden
-   characters), writes the request to `$XDG_RUNTIME_DIR/anumati/<id>/`
+1. `dvarapala` rejects bad requests (no `why`, more than 50 commands, hidden
+   characters), writes the request to `$XDG_RUNTIME_DIR/dvarapala/<id>/`
    (mode 0700) and starts the window with `systemd-run --user` and `env -i`:
    a transient service, not a child of the agent.
 2. The window (`lib/dialog.py`, GTK 4 / libadwaita) reads the request once
@@ -326,17 +326,17 @@ read each command before you approve it. Report security problems privately:
    runs in the window's own process (`lib/userrun.py`).
 4. The runner (`lib/runner.py`) runs each command with `bash -c` from `/`,
    no stdin, a minimal environment, 30 minutes max each, and appends each
-   to `/var/log/anumati.log`. YOU commands get the same limits. The first
+   to `/var/log/dvarapala.log`. YOU commands get the same limits. The first
    failure, either kind, skips the rest.
-5. The process writes `result.json` and exits; `anumati` prints it and exits.
+5. The process writes `result.json` and exits; `dvarapala` prints it and exits.
 
 ## Troubleshooting
 
 - **The window closed but the agent is still waiting.** That's normal: the
   window goes when you answer, and the agent waits for the commands to finish.
-  `systemctl --user list-units 'anumati-*'` shows a run or a hidden request
+  `systemctl --user list-units 'dvarapala-*'` shows a run or a hidden request
   still going. A hidden request nobody answers ends after 10 minutes, as denied.
-- **No window appears.** anumati needs a graphical session: `WAYLAND_DISPLAY`
+- **No window appears.** dvarapala needs a graphical session: `WAYLAND_DISPLAY`
   (or `DISPLAY`) and systemd's user manager. From SSH or a plain TTY it
   returns `status: error`.
 - **"Wrong password" though it's right.** Your user must be allowed to use
@@ -344,7 +344,7 @@ read each command before you approve it. Report security problems privately:
 - **A command hangs, then times out.** It's waiting for input: add a
   non-interactive flag (`--noconfirm`, `-y`).
 - **The window looks unstyled or tiny.** Install libadwaita; on a tiling
-  compositor, float it: sway `for_window [app_id="^io\.github\.theyashsawarkar\.Anumati$"] floating enable`.
+  compositor, float it: sway `for_window [app_id="^io\.github\.theyashsawarkar\.Dvarapala$"] floating enable`.
 
 ## Contributing
 
@@ -353,7 +353,7 @@ Bug reports, ideas and pull requests are welcome: see
 what changed in each release. Changes to what runs as root get extra
 scrutiny; security reports go privately ([SECURITY.md](SECURITY.md)).
 
-anumati comes from [Vayu](https://github.com/Theyashsawarkar/vayu), a
+dvarapala comes from [Vayu](https://github.com/Theyashsawarkar/vayu), a
 keyboard-driven Wayland desktop, and works on any Linux desktop on its own.
 
 ## License

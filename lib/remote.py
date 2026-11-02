@@ -28,7 +28,7 @@ def parse_answer(line, n_commands, root=None):
 
     {"approve": bool, "allow": [indexes], "password": str|None}
 
-    `root`: the indexes of the commands that need the password (anumati's
+    `root`: the indexes of the commands that need the password (dvarapala's
     "as": "root"; None means all of them). Approving only the others needs
     no password, and any password sent with them is dropped.
     """

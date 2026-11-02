@@ -1,6 +1,13 @@
 # Changelog
 
-Newest first. Releases are tags (`vX.Y.Z`) with `VERSION` in `bin/anumati`.
+Newest first. Releases are tags (`vX.Y.Z`) with `VERSION` in `bin/dvarapala`.
+
+## v1.6.0 -- 2026-11-02
+
+- **Renamed from anumati to dvarapala** (द्वारपाल, the guardian at the temple
+  door; ADR 10). The command and MCP server are `dvarapala`;
+  `/usr/local/bin/anumati` stays as a root-owned link to it, so agents and notes
+  that still say anumati keep working. Reinstall with `./install.sh`.
 
 ## v1.5.0 -- 2026-11-02
 

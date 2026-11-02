@@ -1,10 +1,10 @@
 #!/usr/bin/python3 -I
-"""Root side of anumati: runs the commands the user approved.
+"""Root side of dvarapala: runs the commands the user approved.
 
-Installed root-owned as /usr/local/lib/anumati/runner.py by
-anumati's install.sh. Only ever started by dialog.py, as
+Installed root-owned as /usr/local/lib/dvarapala/runner.py by
+dvarapala's install.sh. Only ever started by dialog.py, as
 
-    sudo -S -k -p '' -- /usr/bin/python3 -I /usr/local/lib/anumati/runner.py
+    sudo -S -k -p '' -- /usr/bin/python3 -I /usr/local/lib/dvarapala/runner.py
 
 with the password on the first line of stdin (sudo reads it) and one JSON
 line after it (this script reads it):
@@ -22,7 +22,7 @@ Events go to stdout as JSON lines for the dialog to show live:
     {"event": "skipped", "index": 1}
     {"event": "finished"}
 
-Every run is appended to /var/log/anumati.log (root-only), so there is
+Every run is appended to /var/log/dvarapala.log (root-only), so there is
 a record of what ran as root that the requesting agent can't edit.
 """
 import json
@@ -31,7 +31,7 @@ import subprocess
 import sys
 import time
 
-LOG = "/var/log/anumati.log"
+LOG = "/var/log/dvarapala.log"
 MAX_OUTPUT = 512 * 1024  # per stream, per command
 ENV = {
     "PATH": "/usr/local/sbin:/usr/local/bin:/usr/bin",
@@ -59,12 +59,12 @@ def audit(entry):
         with os.fdopen(fd, "a") as f:
             f.write(json.dumps(entry) + "\n")
     except OSError as e:
-        print(f"anumati runner: can't write {LOG}: {e}", file=sys.stderr)
+        print(f"dvarapala runner: can't write {LOG}: {e}", file=sys.stderr)
 
 
 def main():
     if os.geteuid() != 0:
-        print("runner.py must run as root (via the anumati dialog)", file=sys.stderr)
+        print("runner.py must run as root (via the dvarapala dialog)", file=sys.stderr)
         return 2
     # With NOPASSWD sudo doesn't consume the password line, so skip lines
     # until the request (a JSON object with "commands") arrives.

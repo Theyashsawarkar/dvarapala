@@ -15,7 +15,7 @@ The same process keeps running the commands with no window, then writes `result.
 
 ## Consequences
 
-- Nothing on screen shows a run in progress or its result. Failures reach the user through the agent, which gets every command's output; `~/.local/state/anumati/requests.jsonl` and `/var/log/anumati.log` keep the record.
+- Nothing on screen shows a run in progress or its result. Failures reach the user through the agent, which gets every command's output; `~/.local/state/dvarapala/requests.jsonl` and `/var/log/dvarapala.log` keep the record.
 - A process with no window can't show that it's stuck, so an unexpected error in the run is reported to the agent as an `error` result. A command that hangs still ends at its 30-minute limit.
 - `Ctrl+H` hides the window whenever the user wants it gone, such as during a slow password check. Hiding isn't an answer: an unanswered request can still be answered from the phone, otherwise it expires as denied after 10 minutes, with the agent waiting until then. Esc stays the way to say no.
 - The window says it will close, so a window going away isn't mistaken for a cancelled request.

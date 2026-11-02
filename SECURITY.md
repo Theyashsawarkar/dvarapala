@@ -1,6 +1,6 @@
 # Security policy
 
-anumati decides what runs as root, so security reports matter more here
+dvarapala decides what runs as root, so security reports matter more here
 than anywhere else in the project.
 
 ## Supported versions
@@ -10,7 +10,7 @@ Only the latest release gets fixes.
 ## Reporting a vulnerability
 
 Please **don't open a public issue**. Report it privately through
-[GitHub's security advisories](https://github.com/Theyashsawarkar/anumati/security/advisories/new):
+[GitHub's security advisories](https://github.com/Theyashsawarkar/dvarapala/security/advisories/new):
 what an attacker could do (for example, run a command the user didn't see,
 or read the password), from what position (an agent running as the user, a
 local user, ...), and how to reproduce it. You'll get a reply within a

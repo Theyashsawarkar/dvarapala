@@ -9,7 +9,7 @@ AI agents need root for real work; copying sudo commands back and forth is slow 
 
 ## Decision
 
-anumati shows every command, with the agent's reason, in a window the user approves with their password. It defends against an agent running something unseen; it doesn't defend against malicious code already running as the user (which could fake any password prompt).
+dvarapala shows every command, with the agent's reason, in a window the user approves with their password. It defends against an agent running something unseen; it doesn't defend against malicious code already running as the user (which could fake any password prompt).
 
 ## Consequences
 

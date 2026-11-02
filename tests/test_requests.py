@@ -1,12 +1,12 @@
 """Request validation: a bad request must fail fast (exit 2, status error)
-without opening a window. Runs bin/anumati as a subprocess."""
+without opening a window. Runs bin/dvarapala as a subprocess."""
 import json
 import os
 import subprocess
 import sys
 import unittest
 
-BIN = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", "anumati")
+BIN = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", "dvarapala")
 
 
 def run(request):
@@ -56,8 +56,8 @@ class Validated(unittest.TestCase):
     def setUp(self):
         import importlib.machinery
         import importlib.util
-        loader = importlib.machinery.SourceFileLoader("anumati_bin", BIN)
-        spec = importlib.util.spec_from_loader("anumati_bin", loader)
+        loader = importlib.machinery.SourceFileLoader("dvarapala_bin", BIN)
+        spec = importlib.util.spec_from_loader("dvarapala_bin", loader)
         self.m = importlib.util.module_from_spec(spec)
         loader.exec_module(self.m)
 

@@ -1,4 +1,4 @@
-# anumati -- notes for agents
+# dvarapala -- notes for agents
 
 Commands for AI agents, as root or as the user (`"as"`), approved by the
 user in a window that marks the two apart (ADR 8). Its own repo,
@@ -6,7 +6,7 @@ pulled into Vayu (github.com/Theyashsawarkar/vayu, whose CLAUDE.md
 "Plugins" rules apply); it must work on any Linux desktop on its own. It was
 called vayu-elevate until v1.1.0 (`/usr/local/bin/vayu-elevate` is a link).
 
-- `bin/anumati` (what agents call), `lib/dialog.py` (the window), `lib/remote.py`
+- `bin/dvarapala` (what agents call), `lib/dialog.py` (the window), `lib/remote.py`
   (answering from the phone through ekatva; the same module as pramana's,
   keep in step), `lib/runner.py`
   (runs as root), `lib/userrun.py` (runs the user's commands: allowlisted
@@ -16,10 +16,10 @@ called vayu-elevate until v1.1.0 (`/usr/local/bin/vayu-elevate` is a link).
 - Security first: what the window shows is exactly what runs; the agent never
   sees the password; nothing is left with root access afterwards. Read
   SECURITY.md before changing the flow.
-- Keys: `# keybind: Anumati/root approval | <keys> | <Verb> ...` in
+- Keys: `# keybind: Dvarapala/root approval | <keys> | <Verb> ...` in
   `lib/dialog.py`'s header, and a README row (CI checks).
 - Every change: a CHANGELOG.md entry; releases are tags with `VERSION` in
-  `bin/anumati` bumped. `python -m py_compile bin/anumati lib/*.py`,
+  `bin/dvarapala` bumped. `python -m py_compile bin/dvarapala lib/*.py`,
   `python -m unittest discover -s tests` and `shellcheck install.sh` must pass.
 - Test with harmless requests only (`--cmd id`), through the real window; the
   user approves each.
