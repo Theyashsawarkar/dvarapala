@@ -41,12 +41,6 @@ window.elevate {
 .elevate .why { color: @text; font-weight: 600; font-size: 13.5px; }
 .elevate .cmd { font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace; font-size: 12.5px;
   color: @code; background-color: alpha(@crust, 0.7); border-radius: 10px; padding: 7px 10px; }
-.elevate .state { font-family: "JetBrainsMono Nerd Font", monospace; font-size: 11.5px; color: @subtext; }
-.elevate .state.ok { color: @ok; }
-.elevate .state.failed { color: @error; }
-.elevate .state.skipped, .elevate .state.declined { color: @muted; }
-.elevate .output { font-family: "JetBrainsMono Nerd Font", monospace; font-size: 11.5px; color: @subtext;
-  background-color: alpha(@crust, 0.7); border-radius: 10px; padding: 7px 10px; }
 .elevate .note { color: @muted; font-size: 12px; }
 .elevate .error { color: @error; font-weight: 600; }
 .elevate checkbutton check { border-color: @muted; background-color: alpha(@crust, 0.7); }

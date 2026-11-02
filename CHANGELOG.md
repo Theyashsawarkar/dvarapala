@@ -2,6 +2,24 @@
 
 Newest first. Releases are tags (`vX.Y.Z`) with `VERSION` in `bin/anumati`.
 
+## v1.5.0 -- 2026-11-02
+
+- **The window closes as soon as you answer** (ADR 9). It used to stay up
+  until the commands finished, showing each one's result, and stayed open
+  after a failure until you closed it. Now it goes the moment you approve
+  (after a right password, if one was needed) or deny; a wrong password
+  still keeps it open to retry. The commands run on in the same process with
+  no window, and the agent waits for the results, as before. The phone's
+  request clears at the same moment.
+- Gone with the results view: the per-card state and output, and the
+  `Enter (after a failed run)` key. A failure now reaches you through the
+  agent, which gets the full output; the logs are as before.
+- `Ctrl+H` hides the window at any time. Hiding isn't an answer: an
+  unanswered request can still be answered from the phone, otherwise the
+  agent waits until it expires and counts as denied. It can't be brought back.
+- If the run breaks unexpectedly, the agent now gets an `error` result
+  instead of waiting forever on a process with no window.
+
 ## v1.4.0 -- 2026-10-28
 
 - **Commands as you, not just as root** (ADR 8). A command can say

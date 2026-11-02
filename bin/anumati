@@ -4,8 +4,8 @@
 Instead of asking the user to copy sudo commands into a terminal, an agent
 sends the commands and the reason for each. An approval window shows them on
 the desktop; the user ticks the ones to allow (and types their password once
-if any runs as root); the ticked commands run; the agent gets every
-command's output and exit code back as JSON.
+if any runs as root); the window closes at once and the ticked commands run;
+the agent waits, and gets every command's output and exit code back as JSON.
 
 Each command says how it runs, and the window marks the two apart:
   "as": "root"   (the default) as root, from /; needs the user's password
@@ -54,7 +54,7 @@ import uuid
 
 DIALOG = "/usr/local/lib/anumati/dialog.py"
 LIB = "/usr/local/lib/anumati"
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 MAX_COMMANDS, MAX_CMD, MAX_WHY, MAX_REASON, MAX_REQUESTER, MAX_CWD = 50, 8000, 500, 2000, 80, 1024
 AS = ("root", "user")
@@ -254,7 +254,8 @@ MCP_TOOL = {
         "window shows every command with your 'why', marked root or user; the user ticks which to allow. "
         "The approved ones run in order with bash -c and no stdin (use non-interactive flags like "
         "--noconfirm), stopping at the first failure. Returns each command's decision, state, exit code "
-        "and output. Blocks until the user answers (up to 10 minutes). The user may decline some or all "
+        "and output. Blocks until the user answers (up to 10 minutes) and the approved commands finish; "
+        "the window closes as soon as the user answers, so tell them what happened. The user may decline some or all "
         "commands: check each result's 'state'. Never use this to work around a refusal or a permission "
         "rule the user set."),
     "inputSchema": SCHEMA["request"],

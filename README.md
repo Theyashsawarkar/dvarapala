@@ -119,10 +119,11 @@ it will run, its reason, a checkbox, and a badge saying how it runs:
 **ROOT** (as root, from `/`) or **YOU** (as you, in the folder shown under
 it). The top bar says how many of each. Untick anything you don't want,
 type your password if any ROOT command is ticked, press **Run** (or Enter).
-A request with only YOU commands has no password field. The ticked commands
-run in order, stopping at the first failure, and each card shows its result. If
-they all succeed the window closes by itself; if one fails it stays open
-with the error.
+A request with only YOU commands has no password field. The window closes the
+moment you've answered (after a right password, if one was needed) and you're
+done: the ticked commands run on without it, in order, stopping at the first
+failure, and it's the agent that waits for the results, failures included
+([ADR 9](docs/adr/0009-window-closes-on-answer.md)).
 
 It looks like the rest of the desktop: [Vyom](https://github.com/Theyashsawarkar/vyom)'s
 panels, in your [varna](https://github.com/Theyashsawarkar/varna) theme when
@@ -133,8 +134,8 @@ you have one. The theme's colours are used only if everything stays readable
 |---|---|
 | `Enter (password field or Run)` | Run the selected commands (as root and as you) |
 | `Space` | Toggle the focused command |
-| `Esc` | Cancel the root request (deny everything; closes the window after a run) |
-| `Enter (after a failed run)` | Close the window |
+| `Esc` | Cancel the root request (deny everything) |
+| `Ctrl+H` | Hide the approval window (unanswered, the request stays open on the phone until it expires) |
 
 Closing the window, Deny or Esc means nothing runs. Three wrong passwords
 end the request. A request nobody answers expires after 10 minutes.
@@ -252,7 +253,8 @@ claude mcp add --scope user anumati -- anumati --mcp      # Claude Code
 }
 ```
 
-The call blocks until the user answers, up to 10 minutes. If your client
+The call blocks until the user answers (up to 10 minutes) and the approved
+commands finish; the window itself closes as soon as the user answers. If your client
 times out tool calls sooner, raise its limit (Claude Code: the
 `MCP_TOOL_TIMEOUT` environment variable, in milliseconds).
 
@@ -316,7 +318,8 @@ read each command before you approve it. Report security problems privately:
 2. The window (`lib/dialog.py`, GTK 4 / libadwaita) reads the request once
    into memory and shows it. You untick, type your password, press Run.
 3. If a ROOT command is ticked, it checks the password with
-   `sudo -S -k true`. Then it goes through the ticked commands in order:
+   `sudo -S -k true`. Then the window hides (the process stays, with no
+   window) and it goes through the ticked commands in order:
    each run of consecutive ROOT commands goes to
    `sudo -S -k -- python3 -I runner.py`, with the password and those
    commands on its stdin (nothing is written to disk); each YOU command
@@ -325,10 +328,14 @@ read each command before you approve it. Report security problems privately:
    no stdin, a minimal environment, 30 minutes max each, and appends each
    to `/var/log/anumati.log`. YOU commands get the same limits. The first
    failure, either kind, skips the rest.
-5. The window writes `result.json`; `anumati` prints it and exits.
+5. The process writes `result.json` and exits; `anumati` prints it and exits.
 
 ## Troubleshooting
 
+- **The window closed but the agent is still waiting.** That's normal: the
+  window goes when you answer, and the agent waits for the commands to finish.
+  `systemctl --user list-units 'anumati-*'` shows a run or a hidden request
+  still going. A hidden request nobody answers ends after 10 minutes, as denied.
 - **No window appears.** anumati needs a graphical session: `WAYLAND_DISPLAY`
   (or `DISPLAY`) and systemd's user manager. From SSH or a plain TTY it
   returns `status: error`.

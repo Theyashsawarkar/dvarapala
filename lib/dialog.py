@@ -2,7 +2,9 @@
 """The anumati approval window: shows what an AI agent wants to run (as
 root, or as you: each command is marked) and why, lets the user pick which
 commands to allow, takes the sudo password once if any root command is
-picked, runs the picked ones in order and writes the result for the agent.
+picked, and goes away the moment the user has answered. This process then
+runs the picked ones in order, with no window, and writes the result for the
+agent, which is the one that waits.
 
 Installed root-owned as /usr/local/lib/anumati/dialog.py by
 anumati's install.sh, and started only by anumati, as a transient user service
@@ -13,10 +15,10 @@ GTK CSS can hide a row). See ai/README.md for the threat model.
     dialog.py <request-dir>     reads request.json, writes result.json
 
 Keys:
-# keybind: Anumati/root approval | Esc | Cancel the root request (deny everything; closes the window after a run)
+# keybind: Anumati/root approval | Esc | Cancel the root request (deny everything)
 # keybind: Anumati/root approval | Enter (password field or Run) | Run the selected commands (as root and as you)
 # keybind: Anumati/root approval | Space | Toggle the focused command
-# keybind: Anumati/root approval | Enter (after a failed run) | Close the window
+# keybind: Anumati/root approval | Ctrl+H | Hide the approval window (unanswered, the request stays open on the phone until it expires)
 """
 import ctypes
 import json
@@ -38,7 +40,6 @@ RUNNER = "/usr/local/lib/anumati/runner.py"
 SUDO = "/usr/bin/sudo"
 EXPIRES_AFTER = 600          # seconds the request stays open (then: denied)
 MAX_ATTEMPTS = 3             # wrong passwords before the request fails
-AUTO_CLOSE_MS = 1500         # after a fully successful run
 STATE_LOG = os.path.join(pwd.getpwuid(os.getuid()).pw_dir, ".local/state/anumati/requests.jsonl")
 
 # The look and the theme check (lib/theme.py), loaded by path from this
@@ -186,7 +187,7 @@ class ElevateWindow(Adw.ApplicationWindow):
         sec.add_css_class("section")
         body.append(sec)
         cards = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        self.checks, self.states, self.outputs, self.card_boxes = [], [], [], []
+        self.checks, self.card_boxes = [], []
         for i, (cmd, why, as_, cwd) in enumerate(req.commands):
             card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
             card.add_css_class("cmd-card")
@@ -204,9 +205,6 @@ class ElevateWindow(Adw.ApplicationWindow):
             wl = Gtk.Label(label=why or "(no reason given)", xalign=0, wrap=True, hexpand=True)
             wl.add_css_class("why")
             row.append(wl)
-            state = Gtk.Label(label="", xalign=1)
-            state.add_css_class("state")
-            row.append(state)
             card.append(row)
             # The exact text that will run: selectable, wrapped by character
             # so nothing can hide past the edge.
@@ -219,14 +217,8 @@ class ElevateWindow(Adw.ApplicationWindow):
                 where.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
                 where.add_css_class("where")
                 card.append(where)
-            out = Gtk.Label(xalign=0, wrap=True, selectable=True, visible=False)
-            out.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
-            out.add_css_class("output")
-            card.append(out)
             cards.append(card)
             self.checks.append(check)
-            self.states.append(state)
-            self.outputs.append(out)
             self.card_boxes.append(card)
         scroller = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER,
                                       propagate_natural_height=True, max_content_height=520)
@@ -241,7 +233,8 @@ class ElevateWindow(Adw.ApplicationWindow):
                        "without a password.")
         note = Gtk.Label(xalign=0, wrap=True,
                          label=" ".join(how) + " Each runs with bash -c and no input, in order, stopping at the "
-                               "first that fails. Untick anything you don't want run.")
+                               "first that fails. Untick anything you don't want run. This window closes as "
+                               "soon as you answer; the agent waits for the results.")
         note.add_css_class("note")
         body.append(note)
 
@@ -274,7 +267,7 @@ class ElevateWindow(Adw.ApplicationWindow):
         # Footer, like Vyom's: the keys, then the time left.
         foot = Gtk.Box(spacing=16)
         foot.add_css_class("foot")
-        for keys, what in (("Space", "toggle"), ("Enter", "run"), ("Esc", "deny")):
+        for keys, what in (("Space", "toggle"), ("Enter", "run"), ("Esc", "deny"), ("Ctrl+H", "hide")):
             h = Gtk.Label(use_markup=True)
             h.set_markup(f"{keycap(keys, t)} {GLib.markup_escape_text(what)}")
             h.add_css_class("hint")
@@ -322,15 +315,13 @@ class ElevateWindow(Adw.ApplicationWindow):
         if not self.running and not self.done:
             self.password.set_sensitive(self.needs_password())
 
-    def on_key(self, _ctrl, keyval, _code, _state):
-        if keyval == Gdk.KEY_Escape:
-            if self.done:
-                self.quit()
-            elif not self.running:
-                self.finish_denied("denied", "The user denied the request.")
+    def on_key(self, _ctrl, keyval, _code, state):
+        if keyval in (Gdk.KEY_h, Gdk.KEY_H) and state & Gdk.ModifierType.CONTROL_MASK:
+            self.set_visible(False)
             return True
-        if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter) and self.done:
-            self.quit()
+        if keyval == Gdk.KEY_Escape:
+            if not self.running:
+                self.finish_denied("denied", "The user denied the request.")
             return True
         if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter) and isinstance(self.get_focus(), Gtk.CheckButton):
             # On a card: run, or go to the password when it's needed.
@@ -421,17 +412,28 @@ class ElevateWindow(Adw.ApplicationWindow):
         return False
 
     def start_run(self, pw):
+        """Answered: the window and the phone's request go now, the commands
+        run on without them, and the agent waits for the result."""
         chosen = self.selected()
         for i, r in enumerate(self.results):
             if i not in chosen:
                 r["state"] = "declined"
-                self.set_state(i, "declined", "declined")
+        self.set_visible(False)
+        self.remote.send({"t": "done", "status": "approved"})
+        self.remote.close()
         threading.Thread(target=self.run_all, args=(pw, chosen), daemon=True).start()
 
     def run_all(self, pw, chosen):
         """The chosen commands in request order: each run of consecutive
         ROOT commands goes to the root runner (one sudo), each YOU command
-        runs here; the first failure skips the rest."""
+        runs here; the first failure skips the rest. With no window left to
+        show a crash, anything unexpected still has to reach the agent."""
+        try:
+            self.run_groups(pw, chosen)
+        except Exception as e:
+            GLib.idle_add(self.finish, "error", f"The run stopped unexpectedly: {e}")
+
+    def run_groups(self, pw, chosen):
         groups = []
         for i in chosen:
             who = self.req.commands[i][2]
@@ -497,39 +499,18 @@ class ElevateWindow(Adw.ApplicationWindow):
             return False, f"The root runner exited with {p.returncode}: {err[-500:]}"
         return ok, None
 
-    def set_state(self, i, text, cls):
-        lbl = self.states[i]
-        for c in ("ok", "failed", "skipped", "declined"):
-            lbl.remove_css_class(c)
-        if cls:
-            lbl.add_css_class(cls)
-        lbl.set_label(text)
-
     def on_event(self, ev, i):
         kind = ev.get("event")
-        if kind in ("start", "done", "skipped"):
-            r = self.results[i]
-            if kind == "start":
-                r["state"] = "running"
-                self.set_state(i, "running…", None)
-            elif kind == "skipped":
-                r["state"] = "skipped"
-                self.set_state(i, "skipped", "skipped")
-            else:
-                code = ev["exit_code"]
-                r.update(state="ok" if code == 0 else "failed", exit_code=code, stdout=ev["stdout"],
-                         stderr=ev["stderr"], duration=ev["duration"], timed_out=ev["timed_out"],
-                         truncated=ev.get("truncated", False))
-                self.set_state(i, f"✓ {ev['duration']}s" if code == 0 else f"✗ exit {code}",
-                               "ok" if code == 0 else "failed")
-                text = (ev["stdout"] + ("\n" if ev["stdout"] and ev["stderr"] else "") + ev["stderr"]).strip()
-                if text:
-                    lines = text.splitlines()
-                    shown = "\n".join(lines[-12:])
-                    if len(lines) > 12:
-                        shown = f"… {len(lines) - 12} more lines (full output goes to the agent)\n" + shown
-                    self.outputs[i].set_label(shown)
-                    self.outputs[i].set_visible(True)
+        r = self.results[i]
+        if kind == "start":
+            r["state"] = "running"
+        elif kind == "skipped":
+            r["state"] = "skipped"
+        elif kind == "done":
+            code = ev["exit_code"]
+            r.update(state="ok" if code == 0 else "failed", exit_code=code, stdout=ev["stdout"],
+                     stderr=ev["stderr"], duration=ev["duration"], timed_out=ev["timed_out"],
+                     truncated=ev.get("truncated", False))
         return False
 
     # ---- result ----------------------------------------------------------
@@ -537,9 +518,9 @@ class ElevateWindow(Adw.ApplicationWindow):
         for r in self.results:
             r["decision"] = "declined" if status == "denied" else r["decision"]
             r["state"] = "not_run"
-        self.finish(status, message, close=True)
+        self.finish(status, message)
 
-    def finish(self, status, message, close=False):
+    def finish(self, status, message):
         if self.done:
             return
         self.done = True
@@ -555,26 +536,7 @@ class ElevateWindow(Adw.ApplicationWindow):
         except OSError as e:
             print(f"anumati dialog: can't write the result: {e}", file=sys.stderr)
         self.log(result)
-        if close:
-            self.quit()
-            return
-        ok = sum(r["state"] == "ok" for r in self.results)
-        bad = sum(r["state"] == "failed" for r in self.results)
-        self.run_btn.set_label("Close")
-        self.run_btn.set_sensitive(True)
-        self.run_btn.connect("clicked", lambda *_: self.quit())
-        self.run_btn.grab_focus()
-        if status == "completed" and not bad:
-            # All good: the agent has the output; show the ticks for a moment.
-            self.error.set_label(f"Done: {ok} succeeded. Closing…")
-            self.error.remove_css_class("error")
-            self.error.set_visible(True)
-            GLib.timeout_add(AUTO_CLOSE_MS, lambda: self.quit() or False)
-            return
-        # Something failed: stay open with the output until Enter/Esc/Close.
-        self.error.set_label((f"Done: {ok} succeeded, {bad} failed" if status == "completed" else message)
-                             + ". Enter or Esc closes.")
-        self.error.set_visible(True)
+        self.quit()
 
     def log(self, result):
         try:
@@ -591,7 +553,7 @@ class ElevateWindow(Adw.ApplicationWindow):
     def on_close(self, *_):
         if not self.done:
             if self.running:
-                return True  # don't abandon a run halfway; it finishes on its own
+                return True  # the password is being checked; a right one hides the window
             self.finish_denied("denied", "The user closed the window.")
         return False
 
