@@ -23,6 +23,7 @@
 <h1>dvarapala</h1>
 <div class="sa">द्वारपाल <span>· “guardian of the door”</span></div>
 <p class="lead">Let AI agents ask for root commands, and run only the ones you approve.</p>
+<figure class="shloka"><p lang="sa">मोक्षद्वारे द्वारपालाश्चत्वारः परिकीर्तिताः ।<br>शमो विचारः सन्तोषश्चतुर्थः साधुसङ्गमः ॥</p><figcaption>Four guardians stand at the door of freedom: calm, thinking it through, contentment and good company. <cite>Yoga Vāsiṣṭha 2.11.59</cite></figcaption></figure>
 <div class="cta"><a class="btn primary" href="#install">Install</a><a class="btn" href="https://github.com/Theyashsawarkar/dvarapala">GitHub ↗</a>
 <a class="btn" href="changelog.html">What's new in v1.6.0</a></div>
 <div class="meta"><span><b>v1.6.0</b> latest</span><span><b>9</b> releases</span><span><b>10</b> decisions recorded</span><span><b>MIT</b> license</span></div>
@@ -31,7 +32,7 @@
 <p align="center">
   <img alt="The approval window: a Root access pill and Claude Code's request in the top bar, each command as a card with its reason and a checkbox, the password field with Deny and Run, and the keys in the footer" src="assets/screenshots/window.png" width="80%">
 </p>
-<blockquote><p><em>Dvarapala</em> (द्वारपाल) is Sanskrit for "permission, consent": nothing runs as root without yours.</p></blockquote>
+<blockquote><p><em>Dvarapala</em> (द्वारपाल) is Sanskrit for "guardian of the door": nothing runs without passing it.</p></blockquote>
 <p>An AI coding agent (Claude Code, Codex, Aider, Gemini CLI, anything that can run a shell command or speak MCP) regularly needs something done as root: install a package, enable a service, edit a file in <code>/etc</code>. The usual answer is to copy sudo commands between the agent and a terminal. dvarapala replaces that: the agent sends the commands, each with a reason; a window shows them on your desktop; you untick what you don't want, type your password once, and the ticked commands run. The agent gets every command's output and exit code back.</p>
 <p>The same goes for commands that don't need root but that the agent can't run itself: its sandbox blocks the network or a folder, or you've set it to ask first. The agent marks those <code>&quot;as&quot;: &quot;user&quot;</code>; they show in the same window with a <strong>YOU</strong> badge instead of <strong>ROOT</strong>, run as you with a click (no password), and come back the same way.</p>
 <h2 id="features"><a class="anchor" href="#features">#</a>Features</h2>

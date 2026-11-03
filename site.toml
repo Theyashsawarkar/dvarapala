@@ -6,3 +6,6 @@ tagline = "Let AI agents ask for root commands, and run only the ones you approv
 color = "green"
 kind = "for AI agents"
 logo = "assets/logo.svg"
+shloka = "मोक्षद्वारे द्वारपालाश्चत्वारः परिकीर्तिताः ।\nशमो विचारः सन्तोषश्चतुर्थः साधुसङ्गमः ॥"
+shloka_meaning = "Four guardians stand at the door of freedom: calm, thinking it through, contentment and good company."
+shloka_source = "Yoga Vāsiṣṭha 2.11.59"

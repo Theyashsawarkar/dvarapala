@@ -6,6 +6,15 @@
   </picture>
 </p>
 
+<!-- identity -->
+<p align="center">
+  <b>मोक्षद्वारे द्वारपालाश्चत्वारः परिकीर्तिताः ।<br>
+  शमो विचारः सन्तोषश्चतुर्थः साधुसङ्गमः ॥</b><br>
+  <i>Four guardians stand at the door of freedom: calm, thinking it through, contentment and good company.</i><br>
+  <sub>Yoga Vāsiṣṭha 2.11.59</sub>
+</p>
+<!-- /identity -->
+
 <p align="center">
   <b>Let AI agents ask for the commands they can't run themselves, as root or as you, and run only the ones you approve.</b><br>
   One window: every command and why, marked ROOT or YOU, a tick to allow it, your password once for the root ones. The agent gets the results as JSON.
@@ -23,8 +32,8 @@
   <img alt="The approval window: a Root access pill and Claude Code's request in the top bar, each command as a card with its reason and a checkbox, the password field with Deny and Run, and the keys in the footer" src="assets/screenshots/window.png" width="80%">
 </p>
 
-> *Dvarapala* (द्वारपाल) is Sanskrit for "permission, consent": nothing runs
-> as root without yours.
+> *Dvarapala* (द्वारपाल) is Sanskrit for "guardian of the door": nothing runs
+> without passing it.
 
 An AI coding agent (Claude Code, Codex, Aider, Gemini CLI, anything that can
 run a shell command or speak MCP) regularly needs something done as root:
