@@ -31,6 +31,9 @@ window.elevate {
   border-radius: 12px; padding: 10px 12px; }
 .elevate .cmd-card.root { border-color: alpha(@error, 0.45); }
 .elevate .cmd-card.declined { opacity: 0.5; }
+/* The card j/k is on (NORMAL mode): the accent, "where you are". */
+.elevate .cmd-card.cursor { border-color: @accent; box-shadow: inset 0 0 0 1px @accent; }
+.elevate .vimmode { color: @accent; font-weight: 700; letter-spacing: 1px; }
 /* Who a command runs as: on every card, never only by position. */
 .elevate .mode.user { background-color: alpha(@accent, 0.15); color: @accent; }
 .elevate .badge { font-family: "JetBrainsMono Nerd Font", monospace; font-size: 11px; font-weight: 700;

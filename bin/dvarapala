@@ -54,7 +54,7 @@ import uuid
 
 DIALOG = "/usr/local/lib/dvarapala/dialog.py"
 LIB = "/usr/local/lib/dvarapala"
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 
 MAX_COMMANDS, MAX_CMD, MAX_WHY, MAX_REASON, MAX_REQUESTER, MAX_CWD = 50, 8000, 500, 2000, 80, 1024
 AS = ("root", "user")

@@ -14,6 +14,7 @@
 #   /usr/local/lib/dvarapala/remote.py       answering from the phone, through ekatva
 #   /usr/local/lib/dvarapala/runner.py       runs the approved commands as root
 #   /usr/local/lib/dvarapala/userrun.py      runs the approved commands as you
+#   /usr/local/lib/dvarapala/keys.py         the window's vim keys (Vyom's keys module, vendored)
 #   /usr/local/lib/dvarapala/{config,data}/  empty XDG dirs for the window, so
 #                                          your GTK CSS can't restyle it
 #   /usr/local/bin/{anumati,vayu-elevate}  -> dvarapala (its old names, kept working)
@@ -53,6 +54,7 @@ files=(
   "lib/remote.py:$lib/remote.py"
   "lib/runner.py:$lib/runner.py"
   "lib/userrun.py:$lib/userrun.py"
+  "lib/keys.py:$lib/keys.py"
 )
 for pair in "${files[@]}"; do
   src=$here/${pair%%:*} dst=${pair#*:}

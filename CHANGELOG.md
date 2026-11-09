@@ -2,10 +2,29 @@
 
 Newest first. Releases are tags (`vX.Y.Z`) with `VERSION` in `bin/dvarapala`.
 
-## Unreleased
+## v1.7.0 -- 2026-11-09
 
 - Every corner is rounded: the website's callouts.
 - A logo and a shloka at the top of the README and the website: every Vayu tool has them now.
+
+- Vim keys, modal like every Vayu tool but kept small (no Space leader): the
+  window opens in **insert** mode in the password field when a command runs as
+  root, otherwise in **normal** mode on the first command card. Normal: `j`/`k`
+  move between the commands (`gg`/`G` first/last), `x` or `Space` ticks the
+  one you're on, `a` / `n` tick all / none, `Enter` runs (or goes to the
+  password first), `i` types the password, `q` or `Esc` denies. In the
+  password field `Esc` goes back to the cards instead of denying at once;
+  `Esc` again denies. Moving between cards no longer needs Tab.
+- The card you're on has the accent border, and the footer shows the mode.
+- Enter or Space on the Deny / Run buttons (reached with Tab) still presses
+  that button. Tab and Shift+Tab still move the focus, and Ctrl chords that
+  aren't the window's (Ctrl+C on a selected command) still reach GTK: NORMAL
+  mode had swallowed every key it didn't know, so Tab went nowhere.
+- `Ctrl+H` hides the window while the password is being checked too, as it did
+  before the vim keys.
+- The keys are data, resolved by Vyom's keys module (`lib/keys.py`, vendored,
+  installed root-owned with the rest); `scripts/keybinds.py` writes the
+  `# keybind:` lines and the README table, and CI checks them.
 
 ## v1.6.0 -- 2026-11-02
 
