@@ -31,9 +31,23 @@ Usage (any agent that can run a shell command):
     dvarapala --schema     # request/result format (JSON Schema)
     dvarapala --mcp        # MCP server on stdio (tool: request_root_commands)
 
-Exit codes: 0 every command approved and succeeded; 1 an approved command
-failed; 3 nothing ran (denied, timed out, wrong password); 4 some commands
-were declined, the approved ones succeeded; 2 bad request or tool error.
+A secret you need (an API token, a password) is asked for the same way, never
+in the chat: the user types it into the window and it's saved to the file you
+name (0600, as the user, before any command runs). You only learn whether it
+was saved; read it from the file.
+
+    dvarapala <<'EOF'
+    {"requester": "Claude Code", "reason": "Point the tools' sites at your domain.",
+     "secrets": [{"path": "~/.config/cloudflare/token", "what": "Cloudflare DNS token",
+                  "why": "Edit DNS for theyashsawarkar.dev (My Profile, API Tokens)"}]}
+    EOF
+    dvarapala --secret ~/.config/cloudflare/token --what "Cloudflare DNS token" \
+              --why "Edit DNS for your domain"                                  # one-off form
+
+Exit codes: 0 everything approved and succeeded; 1 an approved command
+failed (or a secret couldn't be saved); 3 nothing ran (denied, timed out,
+wrong password); 4 some commands or secrets were declined, the rest
+succeeded; 2 bad request or tool error.
 
 Commands run with `bash -c`, with no stdin and no tty, in request order,
 stopping at the first failure: use non-interactive flags (pacman
@@ -54,9 +68,10 @@ import uuid
 
 DIALOG = "/usr/local/lib/dvarapala/dialog.py"
 LIB = "/usr/local/lib/dvarapala"
-VERSION = "1.7.0"
+VERSION = "1.8.0"
 
 MAX_COMMANDS, MAX_CMD, MAX_WHY, MAX_REASON, MAX_REQUESTER, MAX_CWD = 50, 8000, 500, 2000, 80, 1024
+MAX_SECRETS, MAX_WHAT, MAX_PATH = 5, 80, 1024
 AS = ("root", "user")
 # Characters that can make displayed text differ from what runs: C0/C1
 # controls (except tab/newline), bidi overrides and isolates, zero-width.
@@ -65,7 +80,7 @@ HIDDEN = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f​-‏‪-‮⁠-⁩﻿]")
 SCHEMA = {
     "request": {
         "type": "object",
-        "required": ["commands"],
+        "description": "At least one command or one secret.",
         "properties": {
             "requester": {"type": "string", "maxLength": MAX_REQUESTER,
                           "description": "Who is asking, shown to the user (e.g. 'Claude Code')."},
@@ -84,6 +99,20 @@ SCHEMA = {
                     "cwd": {"type": "string", "maxLength": MAX_CWD,
                             "description": "With as 'user' only: the absolute directory to run in "
                                            "(default: the user's home). Root commands always run from /."}}}},
+            "secrets": {"type": "array", "minItems": 1, "maxItems": MAX_SECRETS, "items": {
+                "type": "object", "required": ["path", "what", "why"],
+                "description": "A secret (token, password) the user types into the window. It is saved to "
+                               "'path' (0600) as the user, before any command runs; you never see it, only "
+                               "whether it was saved. Read it from that file in your commands.",
+                "properties": {
+                    "path": {"type": "string", "maxLength": MAX_PATH,
+                             "description": "Where to save it: an absolute path in the user's home (~ is "
+                                            "allowed), outside any git repository, e.g. "
+                                            "~/.config/cloudflare/token."},
+                    "what": {"type": "string", "maxLength": MAX_WHAT,
+                             "description": "What it is, as the user knows it: 'Cloudflare DNS token'."},
+                    "why": {"type": "string", "maxLength": MAX_WHY,
+                            "description": "What it's for and where to get it, one line."}}}},
         },
     },
     "result": {
@@ -93,6 +122,10 @@ SCHEMA = {
             "message": {"type": "string"},
             "approved": {"type": "array", "items": {"type": "integer"}},
             "declined": {"type": "array", "items": {"type": "integer"}},
+            "secrets": {"type": "array", "items": {"type": "object", "properties": {
+                "index": {"type": "integer"}, "path": {"type": "string"}, "what": {"type": "string"},
+                "state": {"enum": ["saved", "declined", "failed", "not_run"]},
+                "error": {"type": "string"}}}},
             "results": {"type": "array", "items": {"type": "object", "properties": {
                 "index": {"type": "integer"}, "command": {"type": "string"}, "why": {"type": "string"},
                 "as": {"enum": list(AS)}, "cwd": {"type": "string"},
@@ -113,9 +146,12 @@ class BadRequest(Exception):
 def validate(req):
     if not isinstance(req, dict):
         raise BadRequest("the request must be a JSON object")
-    cmds = req.get("commands")
-    if not isinstance(cmds, list) or not cmds:
-        raise BadRequest("'commands' must be a non-empty list")
+    cmds = req.get("commands", [])
+    secrets = req.get("secrets", [])
+    if not isinstance(cmds, list) or not isinstance(secrets, list):
+        raise BadRequest("'commands' and 'secrets' must be lists")
+    if not cmds and not secrets:
+        raise BadRequest("send at least one command, or one secret to ask for")
     if len(cmds) > MAX_COMMANDS:
         raise BadRequest(f"at most {MAX_COMMANDS} commands per request")
     clean = []
@@ -143,7 +179,7 @@ def validate(req):
                 raise BadRequest(f"commands[{i}].cwd contains control or invisible characters")
             item["cwd"] = os.path.normpath(cwd)
         clean.append(item)
-    out = {"commands": clean}
+    out = {"commands": clean, "secrets": validate_secrets(secrets)}
     for field, limit in (("requester", MAX_REQUESTER), ("reason", MAX_REASON)):
         v = req.get(field, "")
         if not isinstance(v, str) or len(v) > limit:
@@ -152,6 +188,35 @@ def validate(req):
             raise BadRequest(f"'{field}' contains control or invisible characters")
         out[field] = v.strip()
     return out
+
+
+def validate_secrets(secrets):
+    if len(secrets) > MAX_SECRETS:
+        raise BadRequest(f"at most {MAX_SECRETS} secrets per request")
+    home = os.path.expanduser("~")
+    clean, seen = [], set()
+    for i, s in enumerate(secrets):
+        if not isinstance(s, dict):
+            raise BadRequest(f"secrets[{i}] must be an object")
+        for field, limit in (("path", MAX_PATH), ("what", MAX_WHAT), ("why", MAX_WHY)):
+            v = s.get(field)
+            if not isinstance(v, str) or not v.strip():
+                raise BadRequest(f"secrets[{i}] needs a '{field}'")
+            if len(v) > limit:
+                raise BadRequest(f"secrets[{i}].{field} is too long ({limit} chars)")
+            if HIDDEN.search(v):
+                raise BadRequest(f"secrets[{i}].{field} contains control or invisible characters")
+        raw = s["path"].strip()
+        path = os.path.normpath(home + raw[1:] if raw == "~" or raw.startswith("~/") else raw)
+        if not os.path.isabs(path):
+            raise BadRequest(f"secrets[{i}].path must be absolute (or start with ~/)")
+        if not path.startswith(home + os.sep):
+            raise BadRequest(f"secrets[{i}].path must be inside your home")
+        if path in seen:
+            raise BadRequest(f"secrets[{i}].path is asked for twice")
+        seen.add(path)
+        clean.append({"path": path, "what": s["what"].strip(), "why": s["why"].strip()})
+    return clean
 
 
 def session_env():
@@ -200,8 +265,8 @@ def request(req):
     if shutil.which("notify-send"):
         subprocess.run(["notify-send", "-a", "dvarapala", "-u", "critical", "-i", "security-high",
                         "Root access requested" if any(c["as"] == "root" for c in req["commands"])
-                        else "Approval requested",
-                        f"{req.get('requester') or 'An AI agent'} wants to run {summary(req['commands'])}."],
+                        else "A secret requested" if not req["commands"] else "Approval requested",
+                        f"{req.get('requester') or 'An AI agent'} {wants(req)}."],
                        capture_output=True)
     # The window enforces the 10-minute expiry itself (it writes a
     # "timeout" result), so wait for a result or for the window to exit.
@@ -222,6 +287,17 @@ def request(req):
         shutil.rmtree(rdir, ignore_errors=True)
 
 
+def wants(req):
+    """'wants to run 2 commands as root', 'asks you for your Cloudflare token', or both."""
+    parts = []
+    if req["commands"]:
+        parts.append(f"wants to run {summary(req['commands'])}")
+    if req.get("secrets"):
+        names = [s["what"] for s in req["secrets"]]
+        parts.append("asks you for " + (names[0] if len(names) == 1 else f"{len(names)} secrets"))
+    return " and ".join(parts)
+
+
 def summary(commands):
     """'2 commands as root and 1 as you' (the window says the same)."""
     root = sum(c["as"] == "root" for c in commands)
@@ -236,9 +312,10 @@ def exit_code(result):
     if st != "completed":
         return 2 if st == "error" else 3
     states = [r.get("state") for r in result.get("results", [])]
-    if "failed" in states:
+    kept = [s.get("state") for s in result.get("secrets", [])]
+    if "failed" in states or "failed" in kept:
         return 1
-    if "declined" in states:
+    if "declined" in states or "declined" in kept:
         return 4
     return 0
 
@@ -257,7 +334,10 @@ MCP_TOOL = {
         "and output. Blocks until the user answers (up to 10 minutes) and the approved commands finish; "
         "the window closes as soon as the user answers, so tell them what happened. The user may decline some or all "
         "commands: check each result's 'state'. Never use this to work around a refusal or a permission "
-        "rule the user set."),
+        "rule the user set. "
+        "For a secret you need (an API token, a password), never ask the user to paste it into the chat: "
+        "send it in 'secrets' with where to save it; the user types it into the window, it's saved to that "
+        "file (0600) before your commands run, and you only learn whether it was saved."),
     "inputSchema": SCHEMA["request"],
 }
 # The 1.x name, kept so existing setups work: the same tool.
@@ -331,6 +411,8 @@ def main():
                     help="with --cmd: run them as root (default) or as the user")
     ap.add_argument("--cwd", help="with --cmd --as user: the directory to run in (default: home)")
     ap.add_argument("--requester", default=None, help="who is asking (shown to the user)")
+    ap.add_argument("--secret", metavar="PATH", help="ask the user for a secret, saved to PATH (0600)")
+    ap.add_argument("--what", help="with --secret: what it is ('Cloudflare DNS token')")
     ap.add_argument("--schema", action="store_true", help="print the request/result JSON Schema")
     ap.add_argument("--mcp", action="store_true", help="serve MCP on stdio")
     ap.add_argument("--version", action="version", version=VERSION)
@@ -341,7 +423,13 @@ def main():
     if a.mcp:
         return mcp_serve()
     try:
-        if a.cmd:
+        if a.secret:
+            if a.cmd:
+                raise BadRequest("--secret and --cmd go in separate requests (or send JSON with both)")
+            if not a.what or len(a.why) != 1:
+                raise BadRequest("--secret needs --what and one --why")
+            raw = {"reason": a.reason, "secrets": [{"path": a.secret, "what": a.what, "why": a.why[0]}]}
+        elif a.cmd:
             if len(a.cmd) != len(a.why):
                 raise BadRequest("give one --why for every --cmd")
             extra = {"as": a.as_}

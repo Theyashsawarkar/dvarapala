@@ -2,7 +2,9 @@
 """The dvarapala approval window: shows what an AI agent wants to run (as
 root, or as you: each command is marked) and why, lets the user pick which
 commands to allow, takes the sudo password once if any root command is
-picked, and goes away the moment the user has answered. This process then
+picked, and goes away the moment the user has answered. A secret the agent
+asks for (a token) is typed in here too, and saved straight to its file
+(lib/secretfile.py) before any command runs: the agent never sees it. This process then
 runs the picked ones in order, with no window, and writes the result for the
 agent, which is the one that waits.
 
@@ -30,7 +32,7 @@ next to this file, vendored); scripts/keybinds.py writes these lines:
 # keybind: Dvarapala/root approval:normal | a | Select every command
 # keybind: Dvarapala/root approval:normal | n | Clear every tick (select none)
 # keybind: Dvarapala/root approval:normal | Enter | Run the selected commands (goes to the password first when root needs it)
-# keybind: Dvarapala/root approval:normal | i | Enter insert mode in the password field
+# keybind: Dvarapala/root approval:normal | i | Enter insert mode in the secret or password field
 # keybind: Dvarapala/root approval:normal | q | Cancel the request (deny everything)
 # keybind: Dvarapala/root approval:normal | Esc | Cancel the request (deny everything)
 # keybind: Dvarapala/root approval:normal | Ctrl+h | Hide the approval window (unanswered, the request stays open on the phone until it expires)
@@ -96,6 +98,28 @@ def _load_userrun_module():
 userrun = _load_userrun_module()
 
 
+def _load_secretfile_module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("dvarapala_secretfile", os.path.join(os.path.dirname(os.path.realpath(__file__)), "secretfile.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+secretfile = _load_secretfile_module()
+
+
+class NoRemote:
+    """A request with secrets is answered here only: a secret is typed on this screen."""
+    connected = False
+
+    def send(self, _msg):
+        pass
+
+    def close(self):
+        pass
+
+
 def _load_keys_module():
     import importlib.util
     spec = importlib.util.spec_from_file_location("dvarapala_keys", os.path.join(os.path.dirname(os.path.realpath(__file__)), "keys.py"))
@@ -119,7 +143,7 @@ NORMAL_KEYS = [
     Bind("a", "all", "Select every command"),
     Bind("n", "none", "Clear every tick (select none)"),
     Bind("<CR>", "run", "Run the selected commands (goes to the password first when root needs it)"),
-    Bind("i", "password", "Enter insert mode in the password field"),
+    Bind("i", "password", "Enter insert mode in the secret or password field"),
     Bind("q", "deny", "Cancel the request (deny everything)"),
     Bind("<Esc>", "deny", "Cancel the request (deny everything)"),
     Bind("<C-h>", "hide", "Hide the approval window (unanswered, the request stays open on the phone until it expires)"),
@@ -172,8 +196,22 @@ class Request:
         # (cmd, why, "root"|"user", cwd): anything but "user" runs as root.
         self.commands = [(str(c["cmd"]), str(c.get("why") or ""), "user" if c.get("as") == "user" else "root",
                           str(c.get("cwd") or home) if c.get("as") == "user" else "/")
-                         for c in data["commands"]][:50]
+                         for c in data.get("commands") or []][:50]
         self.root = [i for i, c in enumerate(self.commands) if c[2] == "root"]
+        # (path, what, why): typed in here, saved before any command runs.
+        self.secrets = [(str(x["path"]), str(x.get("what") or "a secret")[:80], str(x.get("why") or "")[:500])
+                        for x in data.get("secrets") or []][:5]
+
+
+def wants(req):
+    """'wants to run 2 commands as root', 'asks you for your Cloudflare token', or both."""
+    parts = []
+    if req.commands:
+        parts.append(f"wants to run {summary(req.commands)}")
+    if req.secrets:
+        parts.append("asks you for " + (req.secrets[0][1] if len(req.secrets) == 1
+                                         else f"{len(req.secrets)} secrets"))
+    return " and ".join(parts)
 
 
 def summary(commands):
@@ -198,7 +236,8 @@ def keycap(keys, t):
 
 class ElevateWindow(Adw.ApplicationWindow):
     def __init__(self, app, req, outdir, t=FALLBACK):
-        super().__init__(application=app, title="Root access requested" if req.root else "Approval requested")
+        super().__init__(application=app, title="Root access requested" if req.root else
+                         "Approval requested" if req.commands else "A secret requested")
         self.req, self.outdir = req, outdir
         self.started = time.monotonic()
         self.attempts = 0
@@ -207,6 +246,8 @@ class ElevateWindow(Adw.ApplicationWindow):
         self.results = [{"index": i, "command": c, "why": w, "as": who, "cwd": cwd,
                          "decision": "approved", "state": "not_run"}
                         for i, (c, w, who, cwd) in enumerate(req.commands)]
+        self.secret_results = [{"index": i, "path": p, "what": w, "state": "not_run"}
+                               for i, (p, w, _) in enumerate(req.secrets)]
         self.user = pwd.getpwuid(os.getuid()).pw_name
         self.add_css_class("elevate")
         self.set_default_size(820, -1)
@@ -232,12 +273,12 @@ class ElevateWindow(Adw.ApplicationWindow):
         glyph = Gtk.Label(label="\U000f0483" if req.root else "\U000f0004")
         glyph.add_css_class("glyph")
         pill.append(glyph)
-        pill.append(Gtk.Label(label="Root access" if req.root else "As you"))
+        pill.append(Gtk.Label(label="Root access" if req.root else "As you" if req.commands else "A secret"))
         top.append(pill)
         who = Gtk.Label(label=req.requester, xalign=0)
         who.add_css_class("requester")
         top.append(who)
-        t_ = Gtk.Label(label=f"wants to run {summary(req.commands)}", xalign=0, hexpand=True, wrap=True)
+        t_ = Gtk.Label(label=wants(req), xalign=0, hexpand=True, wrap=True)
         t_.add_css_class("title")
         top.append(t_)
         outer.append(top)
@@ -249,7 +290,43 @@ class ElevateWindow(Adw.ApplicationWindow):
             r.add_css_class("reason")
             body.append(r)
 
-        sec = Gtk.Label(label="COMMANDS", xalign=0)
+        # Secrets first: they're saved before any command runs.
+        self.secret_entries = []
+        if req.secrets:
+            sec = Gtk.Label(label="SECRETS", xalign=0)
+            sec.add_css_class("section")
+            body.append(sec)
+        for i, (path, what, why) in enumerate(req.secrets):
+            card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            card.add_css_class("cmd-card")
+            card.add_css_class("secret")
+            row = Gtk.Box(spacing=10)
+            badge = Gtk.Label(label="SECRET", valign=Gtk.Align.CENTER)
+            badge.add_css_class("badge")
+            badge.add_css_class("secret")
+            row.append(badge)
+            wl = Gtk.Label(label=what, xalign=0, wrap=True, hexpand=True)
+            wl.add_css_class("why")
+            row.append(wl)
+            card.append(row)
+            if why:
+                r = Gtk.Label(label=why, xalign=0, wrap=True, selectable=True)
+                r.add_css_class("reason")
+                card.append(r)
+            where = Gtk.Label(label=f"saved to {short_home(path)}, readable only by you; the agent never sees it",
+                              xalign=0, wrap=True, selectable=True)
+            where.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
+            where.add_css_class("where")
+            card.append(where)
+            entry = Gtk.PasswordEntry(show_peek_icon=True, hexpand=True,
+                                      placeholder_text=f"Paste your {what} here (leave it empty to decline)")
+            entry.connect("activate", lambda *_: self.on_run())
+            entry.connect("changed", lambda *_: self.update_run_label())
+            card.append(entry)
+            body.append(card)
+            self.secret_entries.append(entry)
+
+        sec = Gtk.Label(label="COMMANDS", xalign=0, visible=bool(req.commands))
         sec.add_css_class("section")
         body.append(sec)
         cards = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -287,7 +364,8 @@ class ElevateWindow(Adw.ApplicationWindow):
             self.checks.append(check)
             self.card_boxes.append(card)
         scroller = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER,
-                                      propagate_natural_height=True, max_content_height=520)
+                                      propagate_natural_height=True, max_content_height=520,
+                                      visible=bool(req.commands))
         scroller.set_child(cards)
         body.append(scroller)
 
@@ -297,10 +375,13 @@ class ElevateWindow(Adw.ApplicationWindow):
         if len(req.root) < len(req.commands):
             how.append(f"YOU commands run as {self.user}, in the folder shown, outside the agent's sandbox, "
                        "without a password.")
+        if req.secrets:
+            how.append("Each secret you type is saved to its file first; a secret left empty is declined.")
+        runs = (" Each command runs with bash -c and no input, in order, stopping at the first that fails. "
+                "Untick anything you don't want run." if req.commands else "")
         note = Gtk.Label(xalign=0, wrap=True,
-                         label=" ".join(how) + " Each runs with bash -c and no input, in order, stopping at the "
-                               "first that fails. Untick anything you don't want run. This window closes as "
-                               "soon as you answer; the agent waits for the results.")
+                         label=" ".join(how) + runs + " This window closes as soon as you answer; the agent "
+                               "waits for the results.")
         note.add_css_class("note")
         body.append(note)
 
@@ -339,14 +420,17 @@ class ElevateWindow(Adw.ApplicationWindow):
         foot.append(self.mode_label)
         for keys_, what in (("j k", "move"), ("x", "toggle"), ("Enter", "run"), ("i", "password"),
                             ("Esc", "back / deny"), ("Ctrl+H", "hide")):
-            if keys_ == "i" and not req.root:
+            if keys_ == "i" and not req.root and not req.secrets:
+                continue
+            if keys_ in ("j k", "x") and not req.commands:
                 continue
             h = Gtk.Label(use_markup=True)
             h.set_markup(f"{keycap(keys_, t)} {GLib.markup_escape_text(what)}")
             h.add_css_class("hint")
             foot.append(h)
-        # Answerable from the phone too, when ekatva runs (lib/remote.py).
-        self.remote = remote.Remote.start(
+        # Answerable from the phone too, when ekatva runs (lib/remote.py);
+        # not with secrets: those are typed on this screen.
+        self.remote = NoRemote() if req.secrets else remote.Remote.start(
             {"id": req.id, "via": "anumati", "requester": req.requester, "reason": req.reason,
              "commands": [{"cmd": c, "why": w, "as": who, **({"cwd": cwd} if who == "user" else {})}
                           for c, w, who, cwd in req.commands]},
@@ -367,7 +451,9 @@ class ElevateWindow(Adw.ApplicationWindow):
         self.machine = keys.Machine()
         self.keymap = keys.Keymap(NORMAL_KEYS)
         self.cursor = 0
-        (self.password if req.root or not self.checks else self.checks[0]).grab_focus()   # INSERT when a password is needed
+        # INSERT where typing is needed first: a secret, then the password.
+        (self.secret_entries[0] if self.secret_entries else
+         self.password if req.root or not self.checks else self.checks[0]).grab_focus()
         self.connect("notify::focus-widget", self.update_mode)
         self.update_mode()
 
@@ -386,17 +472,26 @@ class ElevateWindow(Adw.ApplicationWindow):
             self.card_boxes[i].add_css_class("declined")
         self.update_run_label()
 
+    def secrets_given(self):
+        return [i for i, e in enumerate(self.secret_entries) if secretfile.clean(e.get_text())]
+
     def update_run_label(self):
         n = len(self.selected())
-        self.run_btn.set_label(f"Run {n} selected" if n else "Nothing selected")
-        self.run_btn.set_sensitive(n > 0 and not self.running and not self.done)
+        k = len(self.secrets_given())
+        save = f"Save {k} secret{'s' * (k != 1)}" if k else ""
+        run = f"run {n} selected" if n else ""
+        label = (f"{save} and {run}" if save and run else save or (run[:1].upper() + run[1:]) or
+                 ("Type the secret" if self.secret_entries and not self.req.commands else "Nothing selected"))
+        self.run_btn.set_label(label)
+        self.run_btn.set_sensitive((n > 0 or k > 0) and not self.running and not self.done)
         if not self.running and not self.done:
             self.password.set_sensitive(self.needs_password())
 
     def in_password(self):
+        """In a text field (the password, or a secret's): INSERT."""
         f = self.get_focus()
         while f is not None:
-            if f is self.password:
+            if f is self.password or f in self.secret_entries:
                 return True
             f = f.get_parent()
         return False
@@ -474,7 +569,11 @@ class ElevateWindow(Adw.ApplicationWindow):
             for c in self.checks:
                 c.set_active(verb == "all")
         elif verb == "password":
-            if self.password.get_visible() and self.password.get_sensitive():
+            empty = [e for e in self.secret_entries if not e.get_text()]
+            if empty:
+                empty[0].grab_focus()
+                self.update_mode()
+            elif self.password.get_visible() and self.password.get_sensitive():
                 self.focus_password()
         elif verb == "run":
             if self.needs_password() and not self.password.get_text():
@@ -518,14 +617,14 @@ class ElevateWindow(Adw.ApplicationWindow):
 
     # ---- running ---------------------------------------------------------
     def on_run(self):
-        if self.running or self.done or not self.selected():
+        if self.running or self.done or not (self.selected() or self.secrets_given()):
             return
         pw = self.password.get_text()
         self.running = True
         # Move focus off the password field before disabling it: disabling the
         # focused widget left GTK's focus broken and the keys stopped working.
         self.set_focus(None)
-        for w in (*self.checks, self.password, self.deny_btn):
+        for w in (*self.checks, self.password, self.deny_btn, *self.secret_entries):
             w.set_sensitive(False)
         self.update_run_label()
         self.error.set_visible(False)
@@ -554,7 +653,7 @@ class ElevateWindow(Adw.ApplicationWindow):
             self.remote.send({"t": "wrong", "attempts": self.attempts})
             self.error.set_label(f"Wrong password (attempt {self.attempts} of {MAX_ATTEMPTS}).")
             self.error.set_visible(True)
-            for w in (*self.checks, self.password, self.deny_btn):
+            for w in (*self.checks, self.password, self.deny_btn, *self.secret_entries):
                 w.set_sensitive(True)
             self.password.set_text("")
             self.password.grab_focus()
@@ -571,17 +670,55 @@ class ElevateWindow(Adw.ApplicationWindow):
         for i, r in enumerate(self.results):
             if i not in chosen:
                 r["state"] = "declined"
+                r["decision"] = "declined"
+        # The secrets leave the window's fields now; only this list holds them.
+        given = [(i, secretfile.clean(e.get_text())) for i, e in enumerate(self.secret_entries)]
+        for e in self.secret_entries:
+            e.set_text("")
         self.set_visible(False)
         self.remote.send({"t": "done", "status": "approved"})
         self.remote.close()
-        threading.Thread(target=self.run_all, args=(pw, chosen), daemon=True).start()
+        threading.Thread(target=self.run_all, args=(pw, chosen, given), daemon=True).start()
 
-    def run_all(self, pw, chosen):
+    def secrets_said(self):
+        """What happened to the secrets, in words (never what they were)."""
+        failed = [r for r in self.secret_results if r["state"] == "failed"]
+        saved = sum(r["state"] == "saved" for r in self.secret_results)
+        if failed:
+            return f"{failed[0]['what']} couldn't be saved: {failed[0]['error']}"
+        return f"Saved {saved} secret{'s' * (saved != 1)}." if saved else "No secret was given."
+
+    def save_secrets(self, given):
+        """Each typed secret to its file, as you; True when none failed."""
+        home = pwd.getpwuid(os.getuid()).pw_dir
+        ok = True
+        for i, value in given:
+            r = self.secret_results[i]
+            if not value:
+                r["state"] = "declined"
+                continue
+            try:
+                secretfile.save(r["path"], value, home)
+                r["state"] = "saved"
+            except (OSError, ValueError) as e:
+                r["state"] = "failed"
+                r["error"] = str(e)[:300]
+                ok = False
+        given.clear()
+        return ok
+
+    def run_all(self, pw, chosen, given=()):
         """The chosen commands in request order: each run of consecutive
         ROOT commands goes to the root runner (one sudo), each YOU command
         runs here; the first failure skips the rest. With no window left to
         show a crash, anything unexpected still has to reach the agent."""
         try:
+            if not self.save_secrets(list(given)) and chosen:
+                # A command may need the secret that wasn't saved: none runs.
+                for i in chosen:
+                    GLib.idle_add(self.on_event, {"event": "skipped"}, i)
+                GLib.idle_add(self.finish, "completed", f"{self.secrets_said()} No command ran.")
+                return
             self.run_groups(pw, chosen)
         except Exception as e:
             GLib.idle_add(self.finish, "error", f"The run stopped unexpectedly: {e}")
@@ -619,7 +756,7 @@ class ElevateWindow(Adw.ApplicationWindow):
                 GLib.idle_add(self.on_event, {"event": "done", **res}, i)
                 failed = res["exit_code"] != 0
         del pw
-        GLib.idle_add(self.finish, "completed", "Ran the approved commands.")
+        GLib.idle_add(self.finish, "completed", "Ran the approved commands." if chosen else self.secrets_said())
 
     def run_root(self, pw, idxs):
         """(all succeeded, error message if the runner itself broke)"""
@@ -671,6 +808,8 @@ class ElevateWindow(Adw.ApplicationWindow):
         for r in self.results:
             r["decision"] = "declined" if status == "denied" else r["decision"]
             r["state"] = "not_run"
+        for r in self.secret_results:
+            r["state"] = "declined" if status == "denied" else "not_run"
         self.finish(status, message)
 
     def finish(self, status, message):
@@ -684,6 +823,8 @@ class ElevateWindow(Adw.ApplicationWindow):
                   "approved": [r["index"] for r in self.results if r["decision"] == "approved" and status == "completed"],
                   "declined": [r["index"] for r in self.results if r["decision"] == "declined"],
                   "results": self.results}
+        if self.secret_results:
+            result["secrets"] = self.secret_results
         try:
             write_json_atomic(os.path.join(self.outdir, "result.json"), result)
         except OSError as e:
@@ -697,7 +838,10 @@ class ElevateWindow(Adw.ApplicationWindow):
             entry = {"time": time.time(), "id": self.req.id, "requester": self.req.requester,
                      "reason": self.req.reason, "status": result["status"],
                      "commands": [{"cmd": r["command"], "as": r["as"], "cwd": r["cwd"], "decision": r["decision"],
-                                   "state": r["state"], "exit_code": r.get("exit_code")} for r in self.results]}
+                                   "state": r["state"], "exit_code": r.get("exit_code")} for r in self.results],
+                     # Where each secret went, never what it was.
+                     "secrets": [{"path": r["path"], "what": r["what"], "state": r["state"]}
+                                 for r in self.secret_results]}
             with open(STATE_LOG, "a") as f:
                 f.write(json.dumps(entry) + "\n")
         except OSError:

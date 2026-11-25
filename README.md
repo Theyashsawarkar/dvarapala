@@ -156,7 +156,7 @@ password field goes back to the cards, `Esc` on the cards denies.
 | `a` | normal | Select every command |
 | `n` | normal | Clear every tick (select none) |
 | `Enter` | normal | Run the selected commands (goes to the password first when root needs it) |
-| `i` | normal | Enter insert mode in the password field |
+| `i` | normal | Enter insert mode in the secret or password field |
 | `q` | normal | Cancel the request (deny everything) |
 | `Esc` | normal | Cancel the request (deny everything) |
 | `Ctrl+h` | normal | Hide the approval window (unanswered, the request stays open on the phone until it expires) |
@@ -218,6 +218,43 @@ Rules for the commands:
 Ask for exactly what's needed, explain each command honestly, don't re-send
 a denied request unless the user asks, and treat a declined command as the
 user's answer.
+
+### Asking for a secret
+
+Never ask the user to paste a token or password into the chat (it would end
+up in the conversation's log). Ask dvarapala: the user types it into the
+window, and it's saved to the file you name, as them, readable only by them,
+**before any command runs**. You never see it; read it from that file.
+
+```sh
+dvarapala <<'EOF'
+{
+  "requester": "Claude Code",
+  "reason": "Point the tools' sites at your domain.",
+  "secrets": [
+    {"path": "~/.config/cloudflare/token", "what": "Cloudflare DNS token",
+     "why": "Edit DNS for your domain (My Profile, API Tokens, Edit zone DNS)"}
+  ],
+  "commands": [
+    {"cmd": "test -s ~/.config/cloudflare/token", "why": "Check it's there", "as": "user"}
+  ]
+}
+EOF
+```
+
+One-off form: `dvarapala --secret ~/.config/cloudflare/token --what "Cloudflare DNS token" --why "Edit DNS"`.
+
+- `"path"`: where it's saved, inside the user's home (`~/` is fine), never
+  inside a git repository, never through a symbolic link. Its new folders are
+  made private (0700), the file is 0600 and replaced whole.
+- `"what"` (what it is) and `"why"` (what it's for, where to get it) are what
+  the user sees on its card. At most 5 secrets per request.
+- A secret the user leaves empty is declined. If one can't be saved, no
+  command runs (they may need it).
+- The result's `"secrets"` says, for each, `saved`, `declined`, `failed`
+  (with an `error`) or `not_run`; never the value. Nor is it in any log.
+- A request with secrets is answered on the laptop only (a secret is typed
+  there), not from the phone.
 
 ## For agents: reading the result
 
@@ -327,6 +364,7 @@ type your password, and nothing runs as you unless you see it and press Run.
 | No leftover access | sudo runs with `-k` both times: no cached credentials for anything else. |
 | ROOT and YOU can't be confused | Each card says which, in its own colour, with its number in the run order; YOU cards show the user and folder. A command without `"as"` is ROOT, never the reverse; root commands always run from `/`. |
 | A YOU command runs only what you saw | It runs from the window, not the agent, with `bash -c` (no login shell, so no rc file), in an allowlisted environment taken from the session's systemd user manager, not the agent: no `BASH_ENV`, `LD_PRELOAD` or exported functions, and a `PATH` without relative or world-writable folders ([ADR 8](docs/adr/0008-commands-as-you.md)). |
+| A secret you type never reaches the agent | It goes from the window's field straight to its file (0600, as you, inside your home, never in a git repository or through a link); the field is cleared, the result says only whether it was saved, and no log has it ([ADR 11](docs/adr/0011-secrets-typed-in-the-window.md)). |
 | Answering from the phone changes none of this | The phone's answer, through ekatva's end-to-end encrypted link, ticks the commands visibly and fills the password field; then the same check and runner. The window sends nothing secret out, and finds ekatva by your uid, not the agent's environment ([ADR 7](docs/adr/0007-answer-from-the-phone.md)). |
 
 What it **can't** do: protect you from a program that is actively malicious

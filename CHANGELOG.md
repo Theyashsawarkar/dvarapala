@@ -2,6 +2,11 @@
 
 Newest first. Releases are tags (`vX.Y.Z`) with `VERSION` in `bin/dvarapala`.
 
+## v1.8.0 -- 2026-11-25
+
+- **Secrets, typed into the window and never given to the agent** (ADR 11). A request may carry `"secrets"` (where to save each, what it is, why): the window shows a SECRET card with a hidden field, and saves what you type straight to that file (0600, as you, its new folders 0700) before any command runs. Only inside your home, never in a git repository or through a symbolic link. The agent's result says only whether each was saved (`saved`, `declined`, `failed`, `not_run`), and no log has the value. A request can be secrets alone; the one-off form is `dvarapala --secret PATH --what … --why …`. Agents are told (MCP tool, `--help`) never to ask for a secret in the chat. Requests with secrets are answered on the laptop only.
+- The button says what it will do: "Save 1 secret", "Save 1 secret and run 2 selected".
+
 ## v1.7.0 -- 2026-11-09
 
 - Every corner is rounded: the website's callouts.

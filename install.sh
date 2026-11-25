@@ -14,6 +14,7 @@
 #   /usr/local/lib/dvarapala/remote.py       answering from the phone, through ekatva
 #   /usr/local/lib/dvarapala/runner.py       runs the approved commands as root
 #   /usr/local/lib/dvarapala/userrun.py      runs the approved commands as you
+#   /usr/local/lib/dvarapala/secretfile.py   saves a secret you typed, to its file
 #   /usr/local/lib/dvarapala/keys.py         the window's vim keys (Vyom's keys module, vendored)
 #   /usr/local/lib/dvarapala/{config,data}/  empty XDG dirs for the window, so
 #                                          your GTK CSS can't restyle it
@@ -54,6 +55,7 @@ files=(
   "lib/remote.py:$lib/remote.py"
   "lib/runner.py:$lib/runner.py"
   "lib/userrun.py:$lib/userrun.py"
+  "lib/secretfile.py:$lib/secretfile.py"
   "lib/keys.py:$lib/keys.py"
 )
 for pair in "${files[@]}"; do

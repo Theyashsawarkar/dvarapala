@@ -40,6 +40,8 @@ window.elevate {
   padding: 2px 8px; border-radius: 8px; }
 .elevate .badge.root { background-color: alpha(@error, 0.18); color: @error; }
 .elevate .badge.user { background-color: alpha(@accent, 0.18); color: @accent; }
+.elevate .badge.secret { background-color: alpha(@warn, 0.18); color: @warn; }
+.elevate .cmd-card.secret { border-color: alpha(@warn, 0.45); }
 .elevate .where { font-family: "JetBrainsMono Nerd Font", monospace; font-size: 11.5px; color: @subtext; }
 .elevate .why { color: @text; font-weight: 600; font-size: 13.5px; }
 .elevate .cmd { font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace; font-size: 12.5px;
