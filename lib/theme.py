@@ -19,7 +19,7 @@ window.elevate {
   color: @text; font-family: "Inter", "Noto Sans", sans-serif; font-size: 13px;
 }
 .elevate .topbar { padding: 12px 16px; border-bottom: 1px solid alpha(@text, 0.06); }
-.elevate .mode { padding: 5px 11px 5px 9px; border-radius: 10px; font-weight: 600; font-size: 12.5px;
+.elevate .mode { padding: 5px 11px 5px 9px; border-radius: 999px; font-weight: 600; font-size: 12.5px;
   background-color: alpha(@error, 0.15); color: @error; }
 .elevate .glyph { font-family: "JetBrainsMono Nerd Font", monospace; font-size: 15px; }
 .elevate .title { font-size: 15px; font-weight: 600; color: @text; }
@@ -28,7 +28,7 @@ window.elevate {
 .elevate .reason { color: @subtext; font-size: 13px; }
 .elevate .section { color: @muted; font-size: 10.5px; font-weight: 700; letter-spacing: 1px; }
 .elevate .cmd-card { background-color: alpha(@text, 0.05); border: 1px solid alpha(@accent, 0.18);
-  border-radius: 12px; padding: 10px 12px; }
+  border-radius: 20px; padding: 10px 12px; }
 .elevate .cmd-card.root { border-color: alpha(@error, 0.45); }
 .elevate .cmd-card.declined { opacity: 0.5; }
 /* The card j/k is on (NORMAL mode): the accent, "where you are". */
@@ -37,7 +37,7 @@ window.elevate {
 /* Who a command runs as: on every card, never only by position. */
 .elevate .mode.user { background-color: alpha(@accent, 0.15); color: @accent; }
 .elevate .badge { font-family: "JetBrainsMono Nerd Font", monospace; font-size: 11px; font-weight: 700;
-  padding: 2px 8px; border-radius: 8px; }
+  padding: 2px 8px; border-radius: 999px; }
 .elevate .badge.root { background-color: alpha(@error, 0.18); color: @error; }
 .elevate .badge.user { background-color: alpha(@accent, 0.18); color: @accent; }
 .elevate .badge.secret { background-color: alpha(@warn, 0.18); color: @warn; }
@@ -45,13 +45,13 @@ window.elevate {
 .elevate .where { font-family: "JetBrainsMono Nerd Font", monospace; font-size: 11.5px; color: @subtext; }
 .elevate .why { color: @text; font-weight: 600; font-size: 13.5px; }
 .elevate .cmd { font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace; font-size: 12.5px;
-  color: @code; background-color: alpha(@crust, 0.7); border-radius: 10px; padding: 7px 10px; }
+  color: @code; background-color: alpha(@crust, 0.7); border-radius: 14px; padding: 7px 10px; }
 .elevate .note { color: @muted; font-size: 12px; }
 .elevate .error { color: @error; font-weight: 600; }
 .elevate checkbutton check { border-color: @muted; background-color: alpha(@crust, 0.7); }
 .elevate checkbutton check:checked { background-color: @accent; border-color: @accent; color: @on_accent; }
-.elevate entry { background-color: alpha(@crust, 0.7); border-radius: 10px; min-height: 34px; }
-.elevate button.btn { padding: 7px 14px; border-radius: 10px; font-weight: 600; font-size: 12.5px;
+.elevate entry { background-color: alpha(@crust, 0.7); border-radius: 14px; min-height: 34px; }
+.elevate button.btn { padding: 7px 14px; border-radius: 999px; font-weight: 600; font-size: 12.5px;
   background-color: alpha(@text, 0.06); border: 1px solid alpha(@text, 0.08); color: @text; box-shadow: none; }
 .elevate button.btn.run { background-color: @accent; color: @on_accent; border-color: transparent; }
 .elevate button.btn.run:disabled { background-color: alpha(@text, 0.08); color: @muted; }
@@ -63,9 +63,9 @@ window.elevate {
 
 # Vayu's own colours (Catppuccin Mocha): used when there's no varna theme,
 # or the theme fails a check.
-FALLBACK = {"base": "#1e1e2e", "crust": "#11111b", "text": "#cdd6f4", "subtext": "#a6adc8",
-            "muted": "#7f849c", "accent": "#cba6f7", "code": "#a6e3a1", "ok": "#a6e3a1",
-            "error": "#f38ba8", "warn": "#fab387", "on_accent": "#11111b", "dark": True}
+FALLBACK = {"base": "#1b1c20", "crust": "#0e0f11", "text": "#f2f2f0", "subtext": "#b3b5ba",
+            "muted": "#80838a", "accent": "#f4f4f2", "code": "#8ee2a6", "ok": "#8ee2a6",
+            "error": "#ff9389", "warn": "#f7b07d", "on_accent": "#0e0f11", "dark": True}
 
 
 def _luminance(h):

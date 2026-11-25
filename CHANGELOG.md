@@ -4,6 +4,7 @@ Newest first. Releases are tags (`vX.Y.Z`) with `VERSION` in `bin/dvarapala`.
 
 ## Unreleased
 
+- **Spatial look**: the approval window's buttons, mode and badges are pills, its cards rounder; without varna, Vayu's Spatial colours (near-white for where you act).
 - The website has Vayu's Spatial look: graphite glass, a floating navigation bar, near-white for links and the main button, and the tool's own colour only as its signature (the logo's glow, the shloka's line, the release dots). No more all-caps labels.
 
 ## v1.8.0 -- 2026-11-25
