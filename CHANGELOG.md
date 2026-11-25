@@ -2,6 +2,10 @@
 
 Newest first. Releases are tags (`vX.Y.Z`) with `VERSION` in `bin/dvarapala`.
 
+## Unreleased
+
+- The website has Vayu's Spatial look: graphite glass, a floating navigation bar, near-white for links and the main button, and the tool's own colour only as its signature (the logo's glow, the shloka's line, the release dots). No more all-caps labels.
+
 ## v1.8.0 -- 2026-11-25
 
 - **Secrets, typed into the window and never given to the agent** (ADR 11). A request may carry `"secrets"` (where to save each, what it is, why): the window shows a SECRET card with a hidden field, and saves what you type straight to that file (0600, as you, its new folders 0700) before any command runs. Only inside your home, never in a git repository or through a symbolic link. The agent's result says only whether each was saved (`saved`, `declined`, `failed`, `not_run`), and no log has the value. A request can be secrets alone; the one-off form is `dvarapala --secret PATH --what … --why …`. Agents are told (MCP tool, `--help`) never to ask for a secret in the chat. Requests with secrets are answered on the laptop only.
