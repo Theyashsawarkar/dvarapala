@@ -6,7 +6,9 @@ pulled into Vayu (github.com/Theyashsawarkar/vayu, whose CLAUDE.md
 "Plugins" rules apply); it must work on any Linux desktop on its own. It was
 called vayu-elevate until v1.1.0 (`/usr/local/bin/vayu-elevate` is a link).
 
-- `bin/dvarapala` (what agents call), `lib/dialog.py` (the window), `lib/remote.py`
+- `bin/dvarapala` (what agents call; `--serve` is the one MCP server every
+  agent's pranali pipe reaches, `systemd/` its socket-activated units, ADR
+  12), `lib/dialog.py` (the window), `lib/remote.py`
   (answering from the phone through ekatva; the same module as pramana's,
   keep in step), `lib/runner.py`
   (runs as root), `lib/userrun.py` (runs the user's commands: allowlisted

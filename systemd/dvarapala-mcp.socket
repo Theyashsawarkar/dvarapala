@@ -1,0 +1,13 @@
+[Unit]
+Description=dvarapala: one MCP server for every AI agent (its socket)
+Documentation=https://github.com/Theyashsawarkar/dvarapala
+
+[Socket]
+# pranali (each agent's MCP pipe) connects here; only you can (0600 in a 0700 directory)
+ListenStream=%t/dvarapala/mcp.sock
+SocketMode=0600
+DirectoryMode=0700
+Service=dvarapala.service
+
+[Install]
+WantedBy=sockets.target

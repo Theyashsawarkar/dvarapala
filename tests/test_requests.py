@@ -88,7 +88,7 @@ class Interface(unittest.TestCase):
     def test_mcp_lists_both_names(self):
         msgs = [{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
                 {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}]
-        r = subprocess.run([sys.executable, BIN, "--mcp"], input="".join(json.dumps(m) + "\n" for m in msgs),
+        r = subprocess.run([sys.executable, BIN, "--mcp", "--in-process"], input="".join(json.dumps(m) + "\n" for m in msgs),
                            capture_output=True, text=True, timeout=20)
         tools = json.loads(r.stdout.splitlines()[1])["result"]["tools"]
         self.assertEqual([t["name"] for t in tools], ["request_commands", "request_root_commands"])

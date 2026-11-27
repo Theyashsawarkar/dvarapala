@@ -323,6 +323,29 @@ commands finish; the window itself closes as soon as the user answers. If your c
 times out tool calls sooner, raise its limit (Claude Code: the
 `MCP_TOOL_TIMEOUT` environment variable, in milliseconds).
 
+**One server for every agent session.** With
+[pranali](https://github.com/Theyashsawarkar/pranali) on your `PATH`,
+`dvarapala --mcp` becomes pranali, a small pipe (~0.3 MB) to one shared
+server, `dvarapala --serve`, which systemd starts when the first agent
+connects (`dvarapala-mcp.socket`, enabled for you by `install.sh`). Before,
+each session ran a Python server of its own (~11 MB each). Nothing about
+what runs changes: each request is validated, shown and run exactly as
+before, with its own `requester`, in the window on the agent's display. The
+socket (`$XDG_RUNTIME_DIR/dvarapala/mcp.sock`) is 0600 in a 0700 folder and
+serves only your own processes, the ones that can already run `dvarapala`
+([ADR 12](docs/adr/0012-one-server-for-every-agent.md)). Without pranali or
+the socket, `--mcp` serves in the agent's process as before
+(`--mcp --in-process` always does).
+
+```sh
+systemctl --user status dvarapala-mcp.socket dvarapala.service
+```
+
+When the shared server restarts (an update) while a request waits for your
+answer, that agent is told the call "may or may not have happened": the
+window stays and runs what you approve, but its result doesn't reach the
+agent. `install.sh` doesn't restart it while a request is waiting.
+
 ## Telling your agent about it
 
 Add a few lines to the agent's global instructions (Claude Code:
@@ -395,6 +418,11 @@ read each command before you approve it. Report security problems privately:
    to `/var/log/dvarapala.log`. YOU commands get the same limits. The first
    failure, either kind, skips the rest.
 5. The process writes `result.json` and exits; `dvarapala` prints it and exits.
+
+Over MCP the same steps run in the shared server (`dvarapala --serve`,
+started by `dvarapala-mcp.socket`), one thread per call; each agent reaches
+it through its own pranali pipe, which sends a hello (the agent's display)
+before MCP.
 
 ## Troubleshooting
 

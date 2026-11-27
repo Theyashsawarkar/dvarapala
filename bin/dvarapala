@@ -29,7 +29,9 @@ Usage (any agent that can run a shell command):
     dvarapala --why "Reload udev rules" --cmd "udevadm control --reload"   # one-off form
     dvarapala --as user --cwd ~/project --why "Push the branch" --cmd "git push"
     dvarapala --schema     # request/result format (JSON Schema)
-    dvarapala --mcp        # MCP server on stdio (tool: request_root_commands)
+    dvarapala --mcp        # MCP server on stdio (tool: request_commands)
+    dvarapala --serve      # one MCP server for every agent, on a socket
+                           # (dvarapala-mcp.socket; --mcp reaches it through pranali)
 
 A secret you need (an API token, a password) is asked for the same way, never
 in the chat: the user types it into the window and it's saved to the file you
@@ -60,6 +62,10 @@ import json
 import os
 import re
 import shutil
+import signal
+import socket
+import stat
+import struct
 import subprocess
 import sys
 import threading
@@ -219,10 +225,14 @@ def validate_secrets(secrets):
     return clean
 
 
-def session_env():
-    """The graphical session the dialog must appear on."""
+def session_env(wayland=None):
+    """The graphical session the dialog must appear on: the agent's display
+    (its environment, or its pranali hello's) when it's one of this user's,
+    else the first one found."""
     runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
-    wayland = os.environ.get("WAYLAND_DISPLAY")
+    if wayland and not os.path.exists(os.path.join(runtime, wayland)):
+        wayland = None   # another session's (a nested test): not one shown here
+    wayland = wayland or os.environ.get("WAYLAND_DISPLAY")
     if not wayland:
         socks = sorted(f for f in os.listdir(runtime) if re.fullmatch(r"wayland-\d+", f)) if os.path.isdir(runtime) else []
         wayland = socks[0] if socks else None
@@ -240,11 +250,11 @@ def session_env():
     return env
 
 
-def request(req):
+def request(req, wayland=None):
     """Show the approval window for a validated request; return the result."""
     if not os.path.exists(DIALOG):
         raise BadRequest(f"{DIALOG} is missing: run ~/dotfiles/ai/apply.sh")
-    env = session_env()
+    env = session_env(wayland)
     rid = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:8]
     base = os.path.join(env["XDG_RUNTIME_DIR"], "dvarapala")
     os.makedirs(base, mode=0o700, exist_ok=True)
@@ -345,36 +355,63 @@ MCP_TOOLS = [MCP_TOOL, {**MCP_TOOL, "name": "request_root_commands",
                         "title": "Run commands as root (old name of request_commands)"}]
 
 
-def mcp_serve():
-    out_lock = threading.Lock()
+class Session:
+    """One agent's MCP session: lines in, JSON-RPC objects out through
+    write(). On stdio (`--mcp --in-process`) or one connection to the shared
+    server (`--serve`); each tool call runs in its own thread, as before."""
 
-    def send(obj):
-        with out_lock:
-            sys.stdout.write(json.dumps(obj) + "\n")
-            sys.stdout.flush()
+    def __init__(self, write, wayland=None, server=None):
+        self.write, self.wayland, self.server = write, wayland, server
+        self.lock = threading.Lock()
+        self.busy = threading.Condition()
+        self.calls = 0
 
-    def call(msg_id, args):
+    def send(self, obj):
+        with self.lock:
+            try:
+                self.write(json.dumps(obj) + "\n")
+            except (OSError, ValueError):
+                pass   # the agent went away; the window and the commands carry on
+
+    def call(self, msg_id, args):
         try:
-            res = request(validate(args or {}))
-            send({"jsonrpc": "2.0", "id": msg_id, "result": {
+            res = request(validate(args or {}), wayland=self.wayland)
+            self.send({"jsonrpc": "2.0", "id": msg_id, "result": {
                 "content": [{"type": "text", "text": json.dumps(res, indent=2)}],
                 "structuredContent": res,
                 "isError": res.get("status") != "completed"}})
         except BadRequest as e:
-            send({"jsonrpc": "2.0", "id": msg_id, "result": {
+            self.send({"jsonrpc": "2.0", "id": msg_id, "result": {
                 "content": [{"type": "text", "text": f"Bad request: {e}"}], "isError": True}})
         except Exception as e:  # keep the server alive whatever happens
-            send({"jsonrpc": "2.0", "id": msg_id, "error": {"code": -32603, "message": str(e)}})
+            self.send({"jsonrpc": "2.0", "id": msg_id, "error": {"code": -32603, "message": str(e)}})
+        finally:
+            with self.busy:
+                self.calls -= 1
+                self.busy.notify_all()
+            if self.server is not None:
+                self.server.finished()
 
-    for line in sys.stdin:
+    def wait(self, seconds):
+        """Waits up to `seconds` for this session's calls to finish."""
+        end = time.monotonic() + seconds
+        with self.busy:
+            while self.calls and time.monotonic() < end:
+                self.busy.wait(end - time.monotonic())
+
+    def handle(self, line):
+        send = self.send
         try:
             msg = json.loads(line)
         except ValueError:
             send({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}})
-            continue
+            return
+        if not isinstance(msg, dict):
+            send({"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "invalid request"}})
+            return
         method, msg_id = msg.get("method"), msg.get("id")
         if msg_id is None:
-            continue  # notifications (initialized, cancelled) need no answer
+            return  # notifications (initialized, cancelled) need no answer
         if method == "initialize":
             client = (msg.get("params") or {}).get("protocolVersion") or "2025-06-18"
             send({"jsonrpc": "2.0", "id": msg_id, "result": {
@@ -393,11 +430,213 @@ def mcp_serve():
             if params.get("name") not in {t["name"] for t in MCP_TOOLS}:
                 send({"jsonrpc": "2.0", "id": msg_id,
                       "error": {"code": -32602, "message": f"unknown tool {params.get('name')!r}"}})
-                continue
-            threading.Thread(target=call, args=(msg_id, params.get("arguments")), daemon=True).start()
+                return
+            if self.server is not None and not self.server.started():
+                # stopping: refused before anything was shown, so a retry is safe
+                send({"jsonrpc": "2.0", "id": msg_id, "error": {
+                    "code": -32002, "message": "dvarapala is restarting; this call was not run, retry it"}})
+                return
+            with self.busy:
+                self.calls += 1
+            threading.Thread(target=self.call, args=(msg_id, params.get("arguments")), daemon=True).start()
         else:
             send({"jsonrpc": "2.0", "id": msg_id, "error": {"code": -32601, "message": f"no method {method}"}})
+
+
+def mcp_serve():
+    """MCP on stdio, in this process (one per agent session)."""
+    def write(text):
+        sys.stdout.write(text)
+        sys.stdout.flush()
+    session = Session(write)
+    for line in sys.stdin:
+        session.handle(line)
     return 0
+
+
+# ------------------------------------------------- one server for every agent
+# pranali (github.com/Theyashsawarkar/pranali) carries each agent's MCP from
+# its stdio to this socket, so every session shares one server instead of a
+# Python process each. Nothing about what runs changes: requests are
+# validated and shown exactly as before, by the same window, and each
+# carries its own requester. The socket is 0600 in a 0700 directory of the
+# user's, and only the user's own processes (SO_PEERCRED) are served: the
+# same ones that can already run `dvarapala` (ADR 12).
+HELLO_MAX, HELLO_WAIT, OWED_WAIT, DRAIN_WAIT = 64 * 1024, 5, 10, 20
+
+
+def socket_path():
+    """Where pranali looks for it (its PROTOCOL.md): $PRANALI_SOCKET, else
+    $XDG_RUNTIME_DIR/dvarapala/mcp.sock, else under the state directory."""
+    if os.environ.get("PRANALI_SOCKET"):
+        return os.environ["PRANALI_SOCKET"]
+    if os.environ.get("XDG_RUNTIME_DIR"):
+        return os.path.join(os.environ["XDG_RUNTIME_DIR"], "dvarapala", "mcp.sock")
+    state = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+    return os.path.join(state, "dvarapala", "run", "mcp.sock")
+
+
+def private_dir(path):
+    """The socket's directory, made 0700 if missing; refused unless it's a
+    directory of this user's that nobody else can enter."""
+    os.makedirs(path, mode=0o700, exist_ok=True)
+    st = os.lstat(path)
+    if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid() or st.st_mode & 0o077:
+        raise SystemExit(f"dvarapala: {path} must be a directory of yours with mode 0700")
+
+
+class Server:
+    def __init__(self):
+        self.stopping = False
+        self.lock = threading.Condition()
+        self.calls = 0
+
+    def started(self):
+        """A call begins, unless the server is stopping."""
+        with self.lock:
+            if self.stopping:
+                return False
+            self.calls += 1
+            return True
+
+    def finished(self):
+        with self.lock:
+            self.calls -= 1
+            self.lock.notify_all()
+
+    def drain(self, seconds):
+        """Stops taking calls; waits up to `seconds` for those running."""
+        end = time.monotonic() + seconds
+        with self.lock:
+            self.stopping = True
+            while self.calls and time.monotonic() < end:
+                self.lock.wait(end - time.monotonic())
+            return self.calls
+
+    def serve(self, conn):
+        try:
+            _pid, uid, _gid = struct.unpack("3i", conn.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+            if uid != os.getuid():
+                return   # (the socket's 0600 already keeps others out)
+            conn.settimeout(HELLO_WAIT)
+            f = conn.makefile("rb")
+            line = f.readline(HELLO_MAX)
+            try:
+                hello = json.loads(line)
+            except ValueError:
+                hello = None
+            if not isinstance(hello, dict) or hello.get("pranali") != 1:
+                conn.sendall(b'{"pranali":1,"ok":false,"error":"expected a pranali hello"}\n')
+                return
+            env = hello.get("env") if isinstance(hello.get("env"), dict) else {}
+            wayland = env.get("WAYLAND_DISPLAY")
+            if not isinstance(wayland, str) or len(wayland) > 255 or HIDDEN.search(wayland) or "/" in wayland:
+                wayland = None
+            conn.sendall(b'{"pranali":1,"ok":true}\n')
+            conn.settimeout(None)
+
+            def write(text):
+                conn.sendall(text.encode())
+            session = Session(write, wayland=wayland, server=self)
+            while True:
+                line = f.readline()
+                if not line:
+                    break
+                session.handle(line.decode("utf-8", "replace"))
+            # the agent's side closed (half-close): answers owed still go out, for a while
+            session.wait(OWED_WAIT)
+        except OSError:
+            pass
+        finally:
+            try:
+                conn.close()
+            except OSError:
+                pass
+
+
+class Stop(Exception):
+    pass
+
+
+def listener():
+    """The socket systemd passes (dvarapala-mcp.socket), or one bound here."""
+    if os.environ.get("LISTEN_PID") == str(os.getpid()) and int(os.environ.get("LISTEN_FDS") or 0) >= 1:
+        for k in ("LISTEN_PID", "LISTEN_FDS", "LISTEN_FDNAMES"):
+            os.environ.pop(k, None)
+        sock = socket.socket(fileno=3)
+        sock.set_inheritable(False)
+        return sock, None
+    path = socket_path()
+    if len(path.encode()) > 107:
+        raise SystemExit(f"dvarapala: socket path too long: {path}")
+    private_dir(os.path.dirname(path))
+    if os.path.lexists(path):
+        probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            probe.connect(path)
+            raise SystemExit(f"dvarapala: a server already answers on {path}")
+        except (ConnectionRefusedError, FileNotFoundError):
+            os.unlink(path)   # a dead server's: nobody answers it
+        finally:
+            probe.close()
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    old = os.umask(0o177)
+    try:
+        sock.bind(path)
+    finally:
+        os.umask(old)
+    os.chmod(path, 0o600)
+    sock.listen(64)
+    return sock, (path, os.stat(path).st_ino)
+
+
+def serve():
+    """`--serve`: one MCP server for every agent session (through pranali).
+    Idle, it sleeps in accept(): no timers, no wakeups. On SIGTERM it takes
+    no new calls (they're answered -32002, safe to retry) and lets running
+    ones finish for up to 20 s (the unit's TimeoutStopSec is 30)."""
+    sock, bound = listener()
+    server = Server()
+
+    def stop(*_):
+        raise Stop()
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+    try:
+        while True:
+            conn, _ = sock.accept()
+            threading.Thread(target=server.serve, args=(conn,), daemon=True).start()
+    except Stop:
+        pass
+    finally:
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        sock.close()
+        if bound:   # only a socket we bound ourselves, and still ours
+            try:
+                if os.stat(bound[0]).st_ino == bound[1]:
+                    os.unlink(bound[0])
+            except OSError:
+                pass
+    left = server.drain(DRAIN_WAIT)
+    if left:
+        print(f"dvarapala: stopped with {left} request(s) still waiting for an answer; their windows "
+              "stay open and run what you approve, but the agents won't hear the result", file=sys.stderr)
+    return 0
+
+
+def mcp_entry(in_process):
+    """`--mcp`: through pranali to the shared server when pranali is on
+    PATH (it runs this in-process server instead when there's no server to
+    reach), else this process serves MCP itself."""
+    pranali = None if in_process else shutil.which("pranali")
+    if pranali:
+        me = os.path.realpath(sys.argv[0])
+        try:
+            os.execv(pranali, [pranali, "dvarapala", "--fallback",
+                               sys.executable, "-I", me, "--mcp", "--in-process"])
+        except OSError as e:
+            print(f"dvarapala: can't run pranali ({e}); serving MCP here", file=sys.stderr)
+    return mcp_serve()
 
 
 def main():
@@ -414,14 +653,19 @@ def main():
     ap.add_argument("--secret", metavar="PATH", help="ask the user for a secret, saved to PATH (0600)")
     ap.add_argument("--what", help="with --secret: what it is ('Cloudflare DNS token')")
     ap.add_argument("--schema", action="store_true", help="print the request/result JSON Schema")
-    ap.add_argument("--mcp", action="store_true", help="serve MCP on stdio")
+    ap.add_argument("--mcp", action="store_true", help="serve MCP on stdio (through pranali when it's there)")
+    ap.add_argument("--in-process", action="store_true", help="with --mcp: serve MCP in this process")
+    ap.add_argument("--serve", action="store_true",
+                    help="one MCP server for every agent, on $XDG_RUNTIME_DIR/dvarapala/mcp.sock")
     ap.add_argument("--version", action="version", version=VERSION)
     a = ap.parse_args()
     if a.schema:
         print(json.dumps(SCHEMA, indent=2))
         return 0
+    if a.serve:
+        return serve()
     if a.mcp:
-        return mcp_serve()
+        return mcp_entry(a.in_process)
     try:
         if a.secret:
             if a.cmd:

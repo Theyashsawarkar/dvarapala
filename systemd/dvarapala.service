@@ -1,0 +1,13 @@
+[Unit]
+Description=dvarapala: one MCP server for every AI agent
+Documentation=https://github.com/Theyashsawarkar/dvarapala
+Requires=dvarapala-mcp.socket
+After=dvarapala-mcp.socket
+
+[Service]
+# Root-owned code (install.sh); started by the first agent that connects.
+ExecStart=/usr/bin/python3 -I /usr/local/bin/dvarapala --serve
+# On stop it takes no new calls and lets running ones finish for up to 20 s.
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=1
