@@ -595,6 +595,9 @@ def serve():
     Idle, it sleeps in accept(): no timers, no wakeups. On SIGTERM it takes
     no new calls (they're answered -32002, safe to retry) and lets running
     ones finish for up to 20 s (the unit's TimeoutStopSec is 30)."""
+    # The helpers it starts (systemd-run, notify-send, systemctl) come from
+    # root-owned folders only, whatever PATH the user manager has.
+    os.environ["PATH"] = "/usr/local/bin:/usr/bin:/bin"
     sock, bound = listener()
     server = Server()
 
