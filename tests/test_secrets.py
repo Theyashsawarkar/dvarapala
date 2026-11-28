@@ -91,10 +91,12 @@ class Requests(unittest.TestCase):
         self.rejected({"commands": [], "secrets": []}, "at least one command")
 
     def test_a_secret_alone_is_a_request(self):
-        # Valid: it gets as far as needing the desktop (none in tests).
+        # Valid: it gets past validation, as far as needing the desktop (none
+        # in tests), or, where dvarapala isn't installed (CI), its window.
         code, out = ask({"secrets": [{"path": "~/.config/x/token", "what": "X token", "why": "y"}]})
         self.assertEqual(code, 2)
-        self.assertIn("Wayland", out["message"])
+        needs = "Wayland" if os.path.exists("/usr/local/lib/dvarapala/dialog.py") else "dialog.py is missing"
+        self.assertIn(needs, out["message"])
 
 
 if __name__ == "__main__":
